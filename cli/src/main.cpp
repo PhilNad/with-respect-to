@@ -1,73 +1,145 @@
 #include <iostream>
 #include <Eigen/Geometry>
-#include <SQLiteCpp/SQLiteCpp.h>
 #include <string>
-#include <cfloat>
-#include <math.h>
+#include <algorithm>
+#include <regex>
 #include "Wrt.h"
-
+#include "argparse.hpp"
 using namespace std;
-using Eigen::Affine3d;
-using Eigen::Matrix3d;
-using Eigen::AngleAxisd;
-using Eigen::Vector3d;
- 
-double deg_to_rad(double angle){
-    return angle * M_PI / 180;
-}
 
-int main()
-{
-    Affine3d m = Affine3d::Identity();
-    auto R = m.rotation();
-    auto t = m.translation();
-    cout << m.matrix() << endl;
-    cout << R << endl;
-    cout << t << endl;
-    cout << R(2,2) << endl;
-    cout << t(0) << endl;
+int main(int argc, char *argv[]) {
 
-    auto wrt = DbConnector();
-    Affine3d pose;
-    pose.matrix() << 1,0,0,1, 0,1,0,1, 0,0,1,1, 0,0,0,1;
-    wrt.In("test").Set("a").Wrt("world").Ei("world").As(pose);
-    //pose = wrt.In("test").Get("a").Wrt("world").Ei("world");
+    argparse::ArgumentParser program("WRT", "0.1.0");
 
-    Matrix3d rot;
-    rot = AngleAxisd(deg_to_rad(90), Vector3d::UnitX());
-    pose.linear() = rot;
-    pose.translation() << 0,0,0;
-    cout << pose.matrix() << endl;
-    wrt.In("test").Set("b").Wrt("a").Ei("a").As(pose);
+    program.add_argument("-q","--quiet")
+        .help("If a problem arise, do now output any information, fails quietly.")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("-c","--compact")
+        //https://en.wikipedia.org/wiki/Row-_and_column-major_order
+        .help("Output a compact representation of the matrix as a comma separated list of 16 numbers in row-major order.")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("--In")
+        .required()
+        .help("The world name the frame lives in ([a-z][0-9]-).");
+
+    program.add_argument("--Get")
+        .help("Name of the frame to get ([a-z][0-9]-).");
+
+    program.add_argument("--Set")
+        .help("Name of the frame to set ([a-z][0-9]-).");
+
+    program.add_argument("--Wrt")
+        .required()
+        .help("Name of the reference frame the frame is described with respect to ([a-z][0-9]-).");
     
-    rot = Matrix3d::Identity();
-    pose.linear() = rot;
-    pose.translation() << 1,0,0;
-    cout << pose.matrix() << endl;
-    wrt.In("test").Set("c").Wrt("b").Ei("b").As(pose);
-
-    rot = AngleAxisd(deg_to_rad(90), Vector3d::UnitZ());
-    pose.linear() = rot;
-    pose.translation() << 1,1,0;
-    cout << pose.matrix() << endl;
-    wrt.In("test").Set("d").Wrt("b").Ei("b").As(pose);
-
-    pose.matrix() << 1,0,0,0, 0,0,1,0, 0,-1,0,0, 0,0,0,1;
-    assert(wrt.In("test").Get("a").Wrt("b").Ei("b").matrix().isApprox(pose.matrix()));
+    program.add_argument("--Ei")
+        .required()
+        .help("Name of the reference frame the frame is expressed in ([a-z][0-9]-).");
     
-    pose.matrix() << 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1;
-    assert(wrt.In("test").Get("a").Wrt("b").Ei("a").matrix().isApprox(pose.matrix()));
+    program.add_argument("--As")
+        .help("If setting a frame, a string representation of the array defining the pose with rotation R and translation t: [[R00,R01,R02,t0],[R10,R11,R12,t1],[R20,R21,R22,t2],[0,0,0,1]]");
 
-    pose.matrix() << 1,0,0,2, 0,0,-1,1, 0,1,0,1, 0,0,0,1;
-    assert(wrt.In("test").Get("c").Wrt("world").Ei("world").matrix().isApprox(pose.matrix()));
+    try {
+        program.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error& err) {
+        cerr << err.what() << endl;
+        cerr << program;
+        exit(1);
+    }
 
-    pose.matrix() << 1,0,0,2, 0,1,0,1, 0,0,1,-1, 0,0,0,1;
-    assert(wrt.In("test").Get("c").Wrt("world").Ei("c").matrix().isApprox(pose.matrix()));
+    auto has_get = program.is_used("--Get");
+    auto has_set = program.is_used("--Set");
+    auto has_as  = program.is_used("--As");
 
-    pose.matrix() << 1,0,0,2, 0,0,-1,1, 0,1,0,1, 0,0,0,1;
-    assert(wrt.In("test").Get("c").Wrt("world").Ei("a").matrix().isApprox(pose.matrix()));
+    if(has_get && has_set){
+        cerr << "Error: Cannot use both --Get and --Set, only one or the other." << endl;
+        exit(1);
+    }
 
-    pose.matrix() << 0,-1,0,1, 0,0,-1,0, 1,0,0,1, 0,0,0,1;
-    assert(wrt.In("test").Get("d").Wrt("a").Ei("a").matrix().isApprox(pose.matrix()));
+    if(!has_get && !has_set){
+        cerr << "Error: Must specify --Get or --Set." << endl;
+        exit(1);
+    }
 
+    if(has_set && !has_as){
+        cerr << "Error: Must specify --As when using --Set." << endl;
+        exit(1);
+    }
+
+    //Output in this block depends on the "-q" flag.
+    try{
+        //If the user want to Set a frame
+        if(has_set){
+            //Build a matrix from the string representation of the pose
+            auto str_pose = program.get<std::string>("--As");
+            //Pre-process the input string [[R00,R01,R02,t0],[R10,R11,R12,t1],[R20,R21,R22,t2],[0,0,0,1]]
+            char chars_to_remove[] = "[] \r\n\t";
+            for (unsigned int i = 0; i < strlen(chars_to_remove); ++i){
+                str_pose.erase (remove(str_pose.begin(), str_pose.end(), chars_to_remove[i]), str_pose.end());
+            }
+            //Verify the the input string is now a list of 16 real numbers
+            auto valid = regex_match(str_pose, regex(R"(^(((\+|-)?([0-9]+)(\.[0-9]+)?),){15}((\+|-)?([0-9]+)(\.[0-9]+)?)$)"));
+            
+            if(valid){
+                //Extract all the numbers
+                size_t pos = 0;
+                string token;
+                double n[16];
+                int counter = 0;
+                while ((pos = str_pose.find(",")) != string::npos) {
+                    token = str_pose.substr(0, pos);
+                    n[counter] = stod(token);
+                    str_pose.erase(0, pos + 1);
+                    counter++;
+                }
+                n[15] = stod(str_pose);
+                //Build the pose matrix
+                Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+                pose.matrix() << n[0],n[1],n[2],n[3], n[4],n[5],n[6],n[7], n[8],n[9],n[10],n[11], n[12],n[13],n[14],n[15];
+                //Retrieve pertinent arguments
+                auto world_name     = program.get<std::string>("--In");
+                auto frame_name     = program.get<std::string>("--Set");
+                auto ref_frame_name = program.get<std::string>("--Wrt");
+                auto in_frame_name  = program.get<std::string>("--Ei");
+                //Set pose
+                auto wrt = DbConnector();
+                wrt.In(world_name).Set(frame_name).Wrt(ref_frame_name).Ei(in_frame_name).As(pose);
+            }
+        }
+        
+        //If the user want to Get a frame
+        if(has_get){
+            //Retrieve pertinent arguments
+            auto world_name     = program.get<std::string>("--In");
+            auto frame_name     = program.get<std::string>("--Get");
+            auto ref_frame_name = program.get<std::string>("--Wrt");
+            auto in_frame_name  = program.get<std::string>("--Ei");
+            //Get pose
+            auto wrt = DbConnector();
+            Eigen::Affine3d pose = wrt.In(world_name).Get(frame_name).Wrt(ref_frame_name).Ei(in_frame_name);
+
+            //If the output should be compact
+            if(program["--compact"] == true){
+                auto n = pose.matrix();
+                cout << n(0,0) << "," << n(0,1) << "," << n(0,2) << "," << n(0,3) << ",";
+                cout << n(1,0) << "," << n(1,1) << "," << n(1,2) << "," << n(1,3) << ",";
+                cout << n(2,0) << "," << n(2,1) << "," << n(2,2) << "," << n(2,3) << ",";
+                cout << n(3,0) << "," << n(3,1) << "," << n(3,2) << "," << n(3,3) << endl;
+            }else{
+                cout << pose.matrix() << endl;
+            }
+        }
+    }catch (const std::runtime_error& err) {
+        if(program["--quiet"] == true){
+            exit(1);
+        }else{
+            cerr << err.what() << endl;
+            exit(1);
+        }
+    }
 }
