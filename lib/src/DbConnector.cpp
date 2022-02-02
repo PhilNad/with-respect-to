@@ -3,21 +3,46 @@
 #include <filesystem>
 #include <iostream>
 #include <fstream>
+#include <unistd.h>
 using namespace std;
 
-DbConnector::DbConnector(): opened_world({}){
+DbConnector::DbConnector(string db_dir_override): db_dir_override(db_dir_override),opened_world({}){
+}
+
+DbConnector::DbConnector(): db_dir_override({}),opened_world({}){
 }
 
 DbConnector::~DbConnector(){}
 
+//Returns the absolute path to the directory in which this executable is located.
+std::filesystem::path get_exe_dir_abs_path() {
+    char buff[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", buff, sizeof(buff)-1);
+    if (len != -1) {
+        buff[len] = '\0';
+        std::filesystem::path current_exe{string(buff)};
+        return current_exe.parent_path();
+    }else{
+        std::filesystem::path calling_dir{"."};
+        return calling_dir;
+    }
+}
+
 GetSet DbConnector::In(string world_name){
     if(!regex_match(world_name, regex(R"(^[0-9a-z\-]+$)")))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the world name.");
-    //Get a list of existing databases in current directory
-    //to see if database already exists.
+    
     auto DB_EXISTS = false;
-    const std::filesystem::path current_dir{"."};
-    for (auto const& entry : filesystem::directory_iterator{current_dir}){
+    //Get the path to the directory of the executable
+    std::filesystem::path exe_dir = get_exe_dir_abs_path();
+    //Possibly override db directory
+    if(db_dir_override.length() > 0){
+        exe_dir = std::filesystem::path{db_dir_override};
+    }
+
+    //Get a list of existing databases in directory
+    //to see if database already exists.
+    for (auto const& entry : filesystem::directory_iterator{exe_dir}){
         std::filesystem::path entry_path = entry.path();
         if(entry.is_regular_file() && entry_path.extension() == ".db"){
             auto fn = entry_path.filename();
@@ -25,7 +50,7 @@ GetSet DbConnector::In(string world_name){
                 DB_EXISTS = true;
         }
     }
-    
+    world_name = string(std::filesystem::absolute(exe_dir)) + "/" + world_name;
     if(DB_EXISTS == false){
         //Initialize the database.
         //Connects to the database and create it if it doesnt already exist.

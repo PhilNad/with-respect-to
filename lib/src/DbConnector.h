@@ -12,9 +12,11 @@ class DbConnector
 {
     private:
         string opened_world;
+        string db_dir_override;
 
     public:
         DbConnector();
+        DbConnector(string);
         ~DbConnector();
         GetSet In(string);
 };

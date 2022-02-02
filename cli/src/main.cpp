@@ -3,6 +3,7 @@
 #include <string>
 #include <algorithm>
 #include <regex>
+#include <fstream>
 #include "Wrt.h"
 #include "argparse.hpp"
 using namespace std;
@@ -21,6 +22,9 @@ int main(int argc, char *argv[]) {
         .help("Output a compact representation of the matrix as a comma separated list of 16 numbers in row-major order.")
         .default_value(false)
         .implicit_value(true);
+
+     program.add_argument("-d","--dir")
+        .help("Path to the directory in which the database is located.");
 
     program.add_argument("--In")
         .required()
@@ -107,7 +111,14 @@ int main(int argc, char *argv[]) {
                 auto ref_frame_name = program.get<std::string>("--Wrt");
                 auto in_frame_name  = program.get<std::string>("--Ei");
                 //Set pose
-                auto wrt = DbConnector();
+                DbConnector wrt;
+                if(program.is_used("--dir")){
+                    string dir_path = program.get<std::string>("--dir");
+                    wrt = DbConnector(dir_path);
+                    cout << "called constructor with path." << endl;
+                }else{
+                    wrt = DbConnector();
+                }
                 wrt.In(world_name).Set(frame_name).Wrt(ref_frame_name).Ei(in_frame_name).As(pose);
             }
         }
@@ -120,7 +131,13 @@ int main(int argc, char *argv[]) {
             auto ref_frame_name = program.get<std::string>("--Wrt");
             auto in_frame_name  = program.get<std::string>("--Ei");
             //Get pose
-            auto wrt = DbConnector();
+            DbConnector wrt;
+            if(program.is_used("--dir")){
+                string dir_path = program.get<std::string>("--dir");
+                wrt = DbConnector(dir_path);
+            }else{
+                wrt = DbConnector();
+            }
             Eigen::Affine3d pose = wrt.In(world_name).Get(frame_name).Wrt(ref_frame_name).Ei(in_frame_name);
 
             //If the output should be compact

@@ -1,6 +1,6 @@
 find_package (Eigen3 3.4 REQUIRED)
 
-SET(PROJECT_NAME "wrt-cli")
+SET(PROJECT_NAME "WRT")
 project(${PROJECT_NAME})
 add_executable(${PROJECT_NAME} src/main.cpp)
 
@@ -14,3 +14,5 @@ target_link_libraries(${PROJECT_NAME}
     pthread
     dl
 )
+
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)

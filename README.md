@@ -2,7 +2,17 @@
 Simple library that manages databases of 3D transformations with explicit accessors.
 
 ## Installation
-Todo.
+```bash
+> git clone https://github.com/PhilNad/with-respect-to_cpp.git
+> cd with-respect-to_cpp
+> mkdir build
+> cd build
+> cmake --build .
+> cd cli
+> sudo make install
+> cd ~
+> WRT
+```
 
 ## Usage of the Command-Line Interface
 ```
@@ -23,21 +33,23 @@ Optional arguments:
 
 ### Example from Bash
 ```bash
-> ./cli/wrt-cli --In test --Get d --Wrt a --Ei a
+> WRT --In test --Get d --Wrt a --Ei a
  0 -1  0  1
  0  0 -1  0
  1  0  0  1
  0  0  0  1
-> ./cli/wrt-cli --compact --In test --Get d --Wrt a --Ei a
+> WRT --compact --In test --Get d --Wrt a --Ei a
 0,-1,0,1,0,0,-1,0,1,0,0,1,0,0,0,1
-> ./cli/wrt-cli --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
+> WRT --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
 The format of the submitted matrix is wrong (-3).
-> ./cli/wrt-cli --quiet --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
-> ./cli/wrt-cli --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]]
+> WRT --quiet --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
+> WRT --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]]
+> WRT --dir /home/username/other_dir/ --In test --Get d --Wrt a --Ei a
+The reference frame a does not exist in this world.
 ```
 
 ### Example from C++
-See `test.cpp`.
+See `cli/src/test.cpp`.
 
 ## Goals
 - Simple. A single 3D convention is used and is explicitly defined.
@@ -58,7 +70,6 @@ This is reasonable and allows any program that can run commands to use the inter
   - If setting a transform would create a loop, the node is reassigned to a new parent
 
 ## TODO
-- The databaseee is located in the directory from which the program is called. Use a centralized default location and allow override.
 - Test that using this library from multiple scripts produces the intended results.
 - Make Julia and Python bindings to the library.
 - Better documentation of the library.
