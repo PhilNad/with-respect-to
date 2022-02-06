@@ -1,12 +1,51 @@
 # With-Respect-To (+ Expressed-In)
 Simple library that manages databases of 3D transformations with explicit accessors.
 
+## Goals
+- Simple. A single 3D convention is used and is explicitly defined.
+- Fast. The user should not worry about the overhead of calling accessors.
+- Accessible. Information is accessible from a variety of interfaces on Linux (Python, Julia, Bash).
+- Minimalist. The API contains as few methods as possible.
+
+## Performances
+Currently, a GET operation performed from within Bash takes about 0.009 seconds to execute while a SET operation from Bash takes about 0.04 seconds.
+This is reasonable and allows any program that can run bash commands to use the interface.
+
+## Design
+- Uses the [Eigen library](https://eigen.tuxfamily.org)
+- Produces and consumes 4x4 transformation Eigen matrices
+- Store data in a SQLITE database using [sqlite3](https://docs.python.org/3/library/sqlite3.html)
+- The scene is described by a tree
+  - Re-setting a parent node, also changes the children nodes (i.e. assumes a rigid connection between parent and children)
+  - If setting a transform would create a loop, the node is reassigned to a new parent. A frame only has a single parent.
+
 ## Dependencies
-- Python 3.x
-- C++ 17 Compiler
-- CMake > 3.15
-- Eigen > 3.4
-- pybind11
+- [Python 3.x](https://www.python.org/downloads/)
+- [Python 3.x Development Files](https://pkgs.org/download/python3-devel)
+- [C++ 17 Compiler](https://gcc.gnu.org/) (Yes, you need C++17.)
+- [CMake > 3.15](https://cmake.org/download/)
+- [Eigen > 3.4](https://eigen.tuxfamily.org/)
+- [pybind11](https://pybind11.readthedocs.io/en/stable/)
+- [SQLiteCpp](http://srombauts.github.io/SQLiteCpp/)
+- [sqlite3](https://sqlite.org/index.html)
+
+### Dependencies Installation
+All dependencies should be provided by your preferred package manager. PyBind11 should be downloaded automatically from its repository along with this repository and should be located in `extern/pybind11`. Also, for now, this repository contains a copy of SQLiteCpp in `lib/SQLiteCpp-3.1.1`. PyBind11 and SQLiteCpp should be installed to your system to allow CMake to find all the required files:
+```bash
+> cd lib/SQLiteCpp-3.1.1
+> mkdir build
+> cd build
+> cmake --build .
+> sudo make install
+```
+and
+```bash
+> cd extern/pybind11
+> mkdir build
+> cd build
+> cmake --build .
+> sudo make install
+```
 
 ## Installation
 ### Build Executables
@@ -74,25 +113,9 @@ See `cli/src/test.cpp`.
 ### Example from Python
 See `python_bindings/test.py`.
 
-## Goals
-- Simple. A single 3D convention is used and is explicitly defined.
-- Fast. The user should not worry about the overhead of calling accessors.
-- Accessible. Information is accessible from a variety of interfaces on Linux (Python, Julia, Bash).
-- Minimalist. The API contains as few methods as possible.
-
-## Performances
-Currently, a GET operation performed from within Bash takes about 0.009 seconds to execute while a SET operation from Bash takes about 0.04 seconds.
-This is reasonable and allows any program that can run commands to use the interface.
-
-## Design
-- Uses the [Eigen library](https://eigen.tuxfamily.org)
-- Produces and consumes 4x4 transformation Eigen matrices
-- Store data in a SQLITE database using [sqlite3](https://docs.python.org/3/library/sqlite3.html)
-- The scene is described by a tree
-  - Re-setting a parent node, also changes the children nodes (i.e. assumes a rigid connection between parent and children)
-  - If setting a transform would create a loop, the node is reassigned to a new parent
-
 ## TODO
 - Test that using this library from multiple scripts produces the intended results.
 - Make Julia bindings to the library.
 - Better documentation of the library.
+- Remove files related to SQLiteCpp from the repository.
+- Make a x64 Linux executables package for easy installation.
