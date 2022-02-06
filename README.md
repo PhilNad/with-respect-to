@@ -1,17 +1,37 @@
 # With-Respect-To (+ Expressed-In)
 Simple library that manages databases of 3D transformations with explicit accessors.
 
+## Dependencies
+- Python 3.x
+- C++ 17 Compiler
+- CMake > 3.15
+- Eigen > 3.4
+- pybind11
+
 ## Installation
+### Build Executables
 ```bash
 > git clone https://github.com/PhilNad/with-respect-to_cpp.git
 > cd with-respect-to_cpp
 > mkdir build
 > cd build
 > cmake --build .
+```
+### Install Command-Line Interface (cli)
+```bash
 > cd cli
 > sudo make install
+```
+### Install Python3 bindings
+```bash
+> cd ../python_bindings
+> sudo make install
+```
+### Installation Verification
+```bash
 > cd ~
 > WRT
+> python3 -c $'import with_respect_to as WRT'
 ```
 
 ## Usage of the Command-Line Interface
@@ -51,6 +71,9 @@ The reference frame a does not exist in this world.
 ### Example from C++
 See `cli/src/test.cpp`.
 
+### Example from Python
+See `python_bindings/test.py`.
+
 ## Goals
 - Simple. A single 3D convention is used and is explicitly defined.
 - Fast. The user should not worry about the overhead of calling accessors.
@@ -71,5 +94,5 @@ This is reasonable and allows any program that can run commands to use the inter
 
 ## TODO
 - Test that using this library from multiple scripts produces the intended results.
-- Make Julia and Python bindings to the library.
+- Make Julia bindings to the library.
 - Better documentation of the library.

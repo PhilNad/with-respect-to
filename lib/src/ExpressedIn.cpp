@@ -47,7 +47,9 @@ SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string
 
 SetAs::~SetAs(){}
 
-void SetAs::As(Eigen::Affine3d transfo_matrix){
+void SetAs::As(Eigen::Matrix4d transformation_matrix){
+    Eigen::Affine3d transfo_matrix;
+    transfo_matrix.matrix() = transformation_matrix;
     int code = VerifyMatrix(transfo_matrix);
     if(code < 0)
         throw runtime_error("The format of the submitted matrix is wrong ("+to_string(code)+").");
@@ -72,9 +74,10 @@ void SetAs::As(Eigen::Affine3d transfo_matrix){
     //       Like: SET object WRT table EI world
     auto getter = ExpressedInGet(this->world_name, this->in_frame_name, this->ref_frame_name);
     auto X_RI_R = getter.Ei(this->ref_frame_name);
-    
-    auto R = X_RI_R.rotation() * transfo_matrix.rotation();
-    auto t = X_RI_R.rotation() * transfo_matrix.translation();
+    auto rot = X_RI_R(Eigen::seq(0,2), Eigen::seq(0,2));
+
+    auto R = rot * transfo_matrix.rotation();
+    auto t = rot * transfo_matrix.translation();
 
     SQLite::Transaction transaction(db);
     
@@ -195,7 +198,7 @@ Eigen::Affine3d ExpressedInGet::PoseWrtWorld(string frame_name){
     return new_transfo;
 }
 
-Eigen::Affine3d ExpressedInGet::Ei(string in_frame_name){
+Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     this->in_frame_name = in_frame_name;
     if(!VerifyInput(in_frame_name))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the frame name.");
@@ -218,7 +221,7 @@ Eigen::Affine3d ExpressedInGet::Ei(string in_frame_name){
     Eigen::Affine3d mat = Eigen::Affine3d::Identity();
     mat.linear()        = X_IW_I.rotation() * X_RF_W.rotation();
     mat.translation()   = X_IW_I.rotation() * X_RF_W.translation();
-    return mat;
+    return mat.matrix();
 }
 
 

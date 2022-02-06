@@ -103,8 +103,8 @@ int main(int argc, char *argv[]) {
                 }
                 n[15] = stod(str_pose);
                 //Build the pose matrix
-                Eigen::Affine3d pose = Eigen::Affine3d::Identity();
-                pose.matrix() << n[0],n[1],n[2],n[3], n[4],n[5],n[6],n[7], n[8],n[9],n[10],n[11], n[12],n[13],n[14],n[15];
+                Eigen::Matrix4d pose = Eigen::Matrix4d::Identity();
+                pose << n[0],n[1],n[2],n[3], n[4],n[5],n[6],n[7], n[8],n[9],n[10],n[11], n[12],n[13],n[14],n[15];
                 //Retrieve pertinent arguments
                 auto world_name     = program.get<std::string>("--In");
                 auto frame_name     = program.get<std::string>("--Set");
@@ -138,11 +138,11 @@ int main(int argc, char *argv[]) {
             }else{
                 wrt = DbConnector();
             }
-            Eigen::Affine3d pose = wrt.In(world_name).Get(frame_name).Wrt(ref_frame_name).Ei(in_frame_name);
+            Eigen::Matrix4d pose = wrt.In(world_name).Get(frame_name).Wrt(ref_frame_name).Ei(in_frame_name);
 
             //If the output should be compact
             if(program["--compact"] == true){
-                auto n = pose.matrix();
+                auto n = pose;
                 cout << n(0,0) << "," << n(0,1) << "," << n(0,2) << "," << n(0,3) << ",";
                 cout << n(1,0) << "," << n(1,1) << "," << n(1,2) << "," << n(1,3) << ",";
                 cout << n(2,0) << "," << n(2,1) << "," << n(2,2) << "," << n(2,3) << ",";

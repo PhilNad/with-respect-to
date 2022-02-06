@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <unistd.h>
+#include <pwd.h>
 using namespace std;
 
 DbConnector::DbConnector(string db_dir_override): db_dir_override(db_dir_override),opened_world({}){
@@ -13,6 +14,20 @@ DbConnector::DbConnector(): db_dir_override({}),opened_world({}){
 }
 
 DbConnector::~DbConnector(){}
+
+//Return the path to the user's home directory
+std::filesystem::path get_home_dir(){
+    char *homedir = getenv("HOME");
+
+    if (homedir == NULL){
+        homedir = getpwuid(getuid())->pw_dir;
+        std::filesystem::path home_path{string(homedir)};
+        return home_path;
+    }else{
+        std::filesystem::path calling_dir{homedir};
+        return calling_dir;
+    }
+}
 
 //Returns the absolute path to the directory in which this executable is located.
 std::filesystem::path get_exe_dir_abs_path() {
@@ -35,6 +50,11 @@ GetSet DbConnector::In(string world_name){
     auto DB_EXISTS = false;
     //Get the path to the directory of the executable
     std::filesystem::path exe_dir = get_exe_dir_abs_path();
+    //If the exe_dir is "/usr/bin/", it probably means that the calling executable is /usr/bin/python.
+    // In that case, use the home directory instead.
+    if(exe_dir == "/usr/bin"){
+        exe_dir = get_home_dir();
+    }
     //Possibly override db directory
     if(db_dir_override.length() > 0){
         exe_dir = std::filesystem::path{db_dir_override};

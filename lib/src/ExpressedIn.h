@@ -28,7 +28,7 @@ class SetAs{
     public:
         SetAs(string, string, string, string);
         ~SetAs();
-        void As(Eigen::Affine3d);
+        void As(Eigen::Matrix4d);
 };
 
 class ExpressedInGet
@@ -38,12 +38,12 @@ private:
     string frame_name;
     string ref_frame_name;
     string in_frame_name;
+    RefFrame GetParentFrame(string frame_name);
+    Eigen::Affine3d PoseWrtWorld(string frame_name);
 public:
     ExpressedInGet(string, string, string);
     ~ExpressedInGet();
-    RefFrame GetParentFrame(string frame_name);
-    Eigen::Affine3d PoseWrtWorld(string frame_name);
-    Eigen::Affine3d Ei(string);
+    Eigen::Matrix4d Ei(string);
 };
 
 class ExpressedInSet
