@@ -50,12 +50,16 @@ and
 ## Installation
 ### Build Executables
 ```bash
-> git clone https://github.com/PhilNad/with-respect-to_cpp.git
-> cd with-respect-to_cpp
-> mkdir build
-> cd build
-> cmake --build .
+> git clone https://github.com/PhilNad/with-respect-to.git
+> cd with-respect-to
+> cmake -S . -B build
+> cmake --build build
 ```
+### Install Everything
+```bash
+> sudo cmake --install build
+```
+
 ### Install Command-Line Interface (cli)
 ```bash
 > cd cli
@@ -66,6 +70,7 @@ and
 > cd ../python_bindings
 > sudo make install
 ```
+
 ### Installation Verification
 ```bash
 > cd ~

@@ -74,10 +74,13 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     //       Like: SET object WRT table EI world
     auto getter = ExpressedInGet(this->world_name, this->in_frame_name, this->ref_frame_name);
     auto X_RI_R = getter.Ei(this->ref_frame_name);
-    auto rot = X_RI_R(Eigen::seq(0,2), Eigen::seq(0,2));
+    auto R_RI = X_RI_R(Eigen::seq(0,2), Eigen::seq(0,2));
 
-    auto R = rot * transfo_matrix.rotation();
-    auto t = rot * transfo_matrix.translation();
+    // To represent a position vector (ref_frame --> frame), a coordinate system (in_frame) needs to be chosen.
+    // Rotations are not expressed in a coordinate system (no in_frame involved).
+    // t_RF_R = R_RI * t_RF_I
+    auto R = transfo_matrix.rotation();
+    auto t = R_RI * transfo_matrix.translation(); 
 
     SQLite::Transaction transaction(db);
     
@@ -86,7 +89,7 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     q1.bind(1, this->frame_name);
     q1.executeStep();
 
-    //Add new frame
+    //Store the frame built from R_RF and t_RF_R
     SQLite::Statement   q2(db, "INSERT INTO frames VALUES (?, ?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)");
     q2.bind(1, this->frame_name);
     q2.bind(2, this->ref_frame_name);
@@ -205,23 +208,38 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     
     //Using Drake's monogram notation (https://drake.mit.edu/doxygen_cxx/group__multibody__notation__basics.html)
 
-    //1) Make sure frame_name, ref_frame_name and in_frame_name exist in the DB
-    //2) Get frame_name WRT world EI world
+    // 1) Make sure frame_name, ref_frame_name and in_frame_name exist in the DB
+
+    // 2) Get frame_name WRT world EI world
     auto X_WF_W = PoseWrtWorld(this->frame_name);
-    //3) Get ref_frame_name WRT world EI world
+
+    // 3) Get ref_frame_name WRT world EI world
     auto X_WR_W = PoseWrtWorld(this->ref_frame_name);
+    auto R_WR   = X_WR_W.rotation();
+
+    // 4) Get world WRT ref EI world
+    auto X_RW_R = X_WR_W.inverse();
     Eigen::Affine3d X_RW_W = Eigen::Affine3d::Identity();
-    X_RW_W.translation() = -1 * X_WR_W.translation();
-    //4) Get in_frame_name WRT world EI world
+    X_RW_W.linear()        = X_RW_R.rotation();
+    X_RW_W.translation()   = -1 * X_WR_W.translation();
+
+    // 5) Get in_frame_name WRT world EI world
     auto X_WI_W = PoseWrtWorld(this->in_frame_name);
     auto X_IW_I = X_WI_W.inverse();
-    //5) Compute the frame_name WRT ref_frame_name EI world
-    auto X_RF_W = X_RW_W * X_WF_W;
-    //6) Change the "expressed in"
-    Eigen::Affine3d mat = Eigen::Affine3d::Identity();
-    mat.linear()        = X_IW_I.rotation() * X_RF_W.rotation();
-    mat.translation()   = X_IW_I.rotation() * X_RF_W.translation();
-    return mat.matrix();
+    auto R_IW   = X_IW_I.rotation();
+
+    // 6) Compute the frame_name WRT ref_frame_name EI world
+    auto X_RF_R = X_RW_R * X_WF_W;
+    auto R_RF   = X_RF_R.rotation();
+
+    // 7) Change the "expressed in"
+    // To represent a position vector (ref_frame --> frame), a coordinate system (in_frame) needs to be chosen.
+    // Rotations are not expressed in a coordinate system (no in_frame involved).
+    // t_RF_R = R_RI * t_RF_I
+    Eigen::Affine3d X_RF_I = Eigen::Affine3d::Identity();
+    X_RF_I.linear()        = R_RF;
+    X_RF_I.translation()   = R_IW * R_WR * X_RF_R.translation();
+    return X_RF_I.matrix();
 }
 
 

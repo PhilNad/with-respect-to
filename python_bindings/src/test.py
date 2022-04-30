@@ -18,11 +18,15 @@ db.In('test').Set('d').Wrt('b').Ei('b').As(pose)
 
 
 assert(SE3(db.In('test').Get('a').Wrt('b').Ei('b'))          == SE3(np.array([[1,0,0,0],[0,0,1,0],[0,-1,0,0],[0,0,0,1]])))
-assert(SE3(db.In('test').Get('a').Wrt('b').Ei('a'))          == SE3(np.eye(4)))
+assert(SE3(db.In('test').Get('a').Wrt('b').Ei('a'))          == SE3(np.array([[1,0,0,0],[0,0,1,0],[0,-1,0,0],[0,0,0,1]])))
+
 assert(SE3(db.In('test').Get('c').Wrt('world').Ei('world'))  == SE3(np.array([[1,0,0,2],[0,0,-1,1],[0,1,0,1],[0,0,0,1]])))
-assert(SE3(db.In('test').Get('c').Wrt('world').Ei('c'))      == SE3(np.array([[1,0,0,2],[0,1,0,1],[0,0,1,-1],[0,0,0,1]])))
+assert(SE3(db.In('test').Get('c').Wrt('world').Ei('c'))      == SE3(np.array([[1,0,0,2],[0,0,-1,1],[0,1,0,-1],[0,0,0,1]])))
+assert(SE3(db.In('test').Get('c').Wrt('world').Ei('b'))      == SE3(np.array([[1,0,0,2],[0,0,-1,1],[0,1,0,-1],[0,0,0,1]])))
 assert(SE3(db.In('test').Get('c').Wrt('world').Ei('a'))      == SE3(np.array([[1,0,0,2],[0,0,-1,1],[0,1,0,1],[0,0,0,1]])))
+
 assert(SE3(db.In('test').Get('d').Wrt('a').Ei('a'))          == SE3(np.array([[0,-1,0,1],[0,0,-1,0],[1,0,0,1],[0,0,0,1]])))
+assert(SE3(db.In('test').Get('d').Wrt('world').Ei('a'))      == SE3(np.array([[0,-1,0,2],[0,0,-1,1],[1,0,0,2],[0,0,0,1]])))
 
 print("All tests passed!")
 
