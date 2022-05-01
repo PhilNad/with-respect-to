@@ -20,5 +20,7 @@ WrtSet::~WrtSet(){}
 
 ExpressedInSet WrtSet::Wrt(string ref_frame_name){
     this->ref_frame_name = ref_frame_name;
+    if(this->frame_name == this->ref_frame_name)
+        throw runtime_error("The reference frame "+this->ref_frame_name+" must be different than the target frame "+this->frame_name+".");
     return ExpressedInSet(this->world_name, this->frame_name, this->ref_frame_name);
 }
