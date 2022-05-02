@@ -39,6 +39,7 @@ All dependencies should be provided by your preferred package manager. PyBind11 
 ```
 and
 ```bash
+> git submodule update --init --recursive
 > cd extern/pybind11
 > mkdir build
 > cd build
