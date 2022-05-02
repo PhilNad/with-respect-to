@@ -18,7 +18,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE wrt-lib)
 
 
 if (${Python3_FOUND})
-    install(TARGETS ${PROJECT_NAME} DESTINATION ${Python3_SITELIB})
+    install(TARGETS ${PROJECT_NAME} DESTINATION ${Python3_STDLIB})
 else()
     message(STATUS "WARNING: Python3 was not found and the bindings were not installed.")
 endif()
