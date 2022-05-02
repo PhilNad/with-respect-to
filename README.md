@@ -41,10 +41,9 @@ and
 ```bash
 > git submodule update --init --recursive
 > cd extern/pybind11
-> mkdir build
-> cd build
-> cmake --build .
-> sudo make install
+> cmake -S . -B build
+> cmake --build build
+> sudo cmake --install build
 ```
 
 ## Installation
