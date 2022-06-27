@@ -118,6 +118,11 @@ See `cli/src/test.cpp`.
 See `python_bindings/test.py`.
 
 ## TODO
+- Allow setting a pose wrt a reference that does not exist yet.
+  - Verify that the reference frame exists when a GET operation is done.
+  - If the pose being set exists, then set reference pose via the inverse transformation.
+- Allow the tree of reference frames to be disconnected from the 'world' frame.
+  - When getting, find the common ancestor of frame and reference frame and use this ancestor instead of 'world'.
 - Test that using this library from multiple scripts produces the intended results.
 - Make Julia bindings to the library.
 - Better documentation of the library.
