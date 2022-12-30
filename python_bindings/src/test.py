@@ -2,7 +2,9 @@ import numpy as np
 from spatialmath import SE3
 import with_respect_to as WRT
 
-db = WRT.DbConnector()
+TEMPORARY_DATABASE = 1
+
+db = WRT.DbConnector(TEMPORARY_DATABASE)
 
 pose = np.array([[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]])
 db.In('test').Set('a').Wrt('world').Ei('world').As(pose)

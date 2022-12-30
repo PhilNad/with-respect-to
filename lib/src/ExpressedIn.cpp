@@ -36,7 +36,7 @@ RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Affine3d 
 
 RefFrame::~RefFrame(){}
 
-SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string in_frame_name): 
+SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string in_frame_name):
     world_name(world_name), 
     frame_name(frame_name), 
     ref_frame_name(ref_frame_name),
@@ -112,7 +112,7 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
 }
 
 
-ExpressedInGet::ExpressedInGet(string world_name, string frame_name, string ref_frame_name): 
+ExpressedInGet::ExpressedInGet(string world_name, string frame_name, string ref_frame_name):
     world_name(world_name), 
     frame_name(frame_name), 
     ref_frame_name(ref_frame_name){

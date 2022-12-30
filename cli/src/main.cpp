@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
                 DbConnector wrt;
                 if(program.is_used("--dir")){
                     string dir_path = program.get<std::string>("--dir");
-                    wrt = DbConnector(dir_path);
+                    wrt = DbConnector(dir_path, 0);
                     cout << "called constructor with path." << endl;
                 }else{
                     wrt = DbConnector();
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
             DbConnector wrt;
             if(program.is_used("--dir")){
                 string dir_path = program.get<std::string>("--dir");
-                wrt = DbConnector(dir_path);
+                wrt = DbConnector(dir_path, 0);
             }else{
                 wrt = DbConnector();
             }

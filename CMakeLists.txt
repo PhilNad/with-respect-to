@@ -5,6 +5,7 @@ project(With-Respect-To_CPP)
 
 add_subdirectory(lib)
 add_subdirectory(cli)
+add_subdirectory(test)
 add_subdirectory(python_bindings)
 
 

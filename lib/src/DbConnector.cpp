@@ -7,13 +7,26 @@
 #include <pwd.h>
 using namespace std;
 
-DbConnector::DbConnector(string db_dir_override): db_dir_override(db_dir_override),opened_world({}){
+DbConnector::DbConnector(string db_dir_override, uint8_t flags): db_dir_override(db_dir_override){
+    //Each bit set to 1 corresponds to a flag being raised.
+    //TEMPORARY_DATABASE: Delete database file when DbConnector is destroyed
+    this->temporary_db = flags & this->TEMPORARY_DATABASE; 
 }
 
-DbConnector::DbConnector(): db_dir_override({}),opened_world({}){
-}
+//Delegated constructors
+DbConnector::DbConnector(uint8_t flags): DbConnector("", flags){}
+DbConnector::DbConnector(): DbConnector("", 0){}
 
-DbConnector::~DbConnector(){}
+DbConnector::~DbConnector(){
+    //If the temporary flag was set
+    if(this->temporary_db){
+        //Remove the database file if it exists.
+        auto p = std::filesystem::path{this->db_path};
+        if(std::filesystem::exists(p)){
+            std::filesystem::remove(p);
+        }
+    }
+}
 
 //Return the path to the user's home directory
 std::filesystem::path get_home_dir(){
@@ -70,11 +83,16 @@ GetSet DbConnector::In(string world_name){
                 DB_EXISTS = true;
         }
     }
+
+    
+
     world_name = string(std::filesystem::absolute(exe_dir)) + "/" + world_name;
+    this->db_path = world_name+".db";
+
     if(DB_EXISTS == false){
         //Initialize the database.
         //Connects to the database and create it if it doesnt already exist.
-        SQLite::Database db(world_name+".db", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
+        SQLite::Database db(this->db_path, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
         /*
         Each row describes a single frame with
             - name : Unique string
@@ -104,6 +122,5 @@ GetSet DbConnector::In(string world_name){
                     );");
         db.exec("INSERT INTO frames VALUES ('world', NULL, 1,0,0, 0,1,0, 0,0,1, 0,0,0)");
     }
-    opened_world = world_name;
     return GetSet(world_name);
 }

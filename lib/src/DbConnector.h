@@ -11,12 +11,15 @@ using namespace std;
 class DbConnector
 {
     private:
-        string opened_world;
         string db_dir_override;
-
+        bool temporary_db;
+        string db_path;
     public:
         DbConnector();
-        DbConnector(string);
+        DbConnector(uint8_t);
+        DbConnector(string, uint8_t);
         ~DbConnector();
         GetSet In(string);
+        //Flags definitions
+        static const uint8_t TEMPORARY_DATABASE = 0b00000001;
 };

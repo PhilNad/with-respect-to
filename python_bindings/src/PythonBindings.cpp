@@ -7,8 +7,9 @@ namespace py = pybind11;
 PYBIND11_MODULE(with_respect_to, m) {
     m.doc() = "Provides an interface to set and get the pose of reference frames as homogeneous transformation matrices.";
     py::class_<DbConnector>(m, "DbConnector")
-        .def(py::init<std::string &>(), "Initialize access to the database located in the directory specified in argument.")
-        .def(py::init<>(),              "Initialize access to the database located in the user's home directory.")
+        .def(py::init<std::string &, std::uint8_t &>(), "Initialize access to the database located in the directory specified in argument.")
+        .def(py::init<std::uint8_t &>(), "Initialize access to the database located in the user's home directory.")
+        .def(py::init<>(),                 "Initialize access to the database located in the user's home directory.")
         .def("In", &DbConnector::In, "Creates or connects to the database named as specified in argument. The specified name can only include characters in ([a-z][0-9]-).");
 
     py::class_<GetSet>(m, "GetSet")
