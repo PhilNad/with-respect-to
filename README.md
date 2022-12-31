@@ -128,5 +128,6 @@ See `python_bindings/test.py`.
 - Test that using this library from multiple scripts produces the intended results.
 - Make Julia bindings to the library.
 - Better documentation of the library.
-- Remove files related to SQLiteCpp from the repository.
+- ~Remove files related to SQLiteCpp from the repository.~
+  - Now SQLiteCpp is a submodule in ./extern/
 - Make a x64 Linux executables package for easy installation.
