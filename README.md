@@ -122,9 +122,9 @@ See `python_bindings/test.py`.
   - Using the sqlite3 feature (with :memory: filename) of working in memory is difficult to use with SQLiteCpp as the interface makes it hard to save a reference to a database for later use. Instead, we are now enabling the user to pass a flag to the library such that the database file will be deleted upon destruction of the database object.
 - [x] Allow setting a pose wrt a reference that does not exist yet.
 - [x] Allow the tree of reference frames to be disconnected from the 'world' frame.
-- Test that using this library from multiple scripts produces the intended results.
-- Make Julia bindings to the library.
-- Better documentation of the library.
+- [ ] Test that using this library from multiple scripts produces the intended results.
+- [ ] Make Julia bindings to the library.
+- [ ] Better documentation of the library.
 - [x] ~Remove files related to SQLiteCpp from the repository.~
   - Now SQLiteCpp is a submodule in ./extern/
-- Make a x64 Linux executables package for easy installation.
+- [ ] Make a x64 Linux executables package for easy installation.
