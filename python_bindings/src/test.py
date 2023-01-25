@@ -6,11 +6,11 @@ TEMPORARY_DATABASE = 1
 
 db = WRT.DbConnector(TEMPORARY_DATABASE)
 
-pose = np.array([[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]])
-db.In('test').Set('a').Wrt('world').Ei('world').As(pose)
-
 pose = SE3.Rx(90, "deg").A
 db.In('test').Set('b').Wrt('a').Ei('a').As(pose)
+
+pose = np.array([[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]])
+db.In('test').Set('a').Wrt('world').Ei('world').As(pose)
 
 pose = SE3.Rx(0, "deg", t=[1,0,0]).A
 db.In('test').Set('c').Wrt('b').Ei('b').As(pose)

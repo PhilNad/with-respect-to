@@ -39,7 +39,7 @@ private:
     string ref_frame_name;
     string in_frame_name;
     RefFrame GetParentFrame(string frame_name);
-    Eigen::Affine3d PoseWrtWorld(string frame_name);
+    tuple<Eigen::Affine3d, string> PoseWrtRoot(string frame_name);
 public:
     ExpressedInGet(string, string, string);
     ~ExpressedInGet();

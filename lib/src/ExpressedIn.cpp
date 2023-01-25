@@ -3,6 +3,7 @@
 #include <regex>
 #include <cfloat>
 #include <iostream>
+#include <tuple>
 using namespace std;
 
 bool VerifyInput(string name){
@@ -64,17 +65,33 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     while (query.executeStep()){
         row_counter++;
     }
-    if(row_counter == 0){
+    
+    //If there is no frame called ref_frame_name in the database
+    // and the ref_frame_name is not the same as the in_frame_name
+    if(row_counter == 0 && this->ref_frame_name != this->in_frame_name){
+        //We are now permitting setting a reference frame with respect to a parent frame that has not yet been defined
+        // unless the in_frame_name is different from the ref_frame_name.
         throw runtime_error("The reference frame "+this->ref_frame_name+" does not exist in this world.");
     }
-    if(row_counter != 1){
+    
+    //Throw an error if there is more than one existing reference frame called ref_frame_name
+    if(row_counter > 1){
         throw runtime_error("Need a single reference frame "+this->ref_frame_name+".");
     }
-    //Take into account the fact that the transformation can be expressed in a frame different from the reference frame
-    //       Like: SET object WRT table EI world
-    auto getter = ExpressedInGet(this->world_name, this->in_frame_name, this->ref_frame_name);
-    auto X_RI_R = getter.Ei(this->ref_frame_name);
-    auto R_RI = X_RI_R(Eigen::seq(0,2), Eigen::seq(0,2));
+    
+    
+    Eigen::Matrix3d R_RI;
+    //If the ref_frame is different from the in_frame
+    if(this->ref_frame_name != this->in_frame_name){
+        //Take into account the fact that the transformation can be expressed in a frame different from the reference frame
+        //       Like: SET object WRT table EI world
+        auto getter = ExpressedInGet(this->world_name, this->in_frame_name, this->ref_frame_name);
+        auto X_RI_R = getter.Ei(this->ref_frame_name);
+        R_RI = X_RI_R(Eigen::seq(0,2), Eigen::seq(0,2));
+    }else{
+        //If the ref_frame is the same as the in_frame, the identity matrix relates them.
+        R_RI = Eigen::Matrix3d::Identity();
+    }
 
     // To represent a position vector (ref_frame --> frame), a coordinate system (in_frame) needs to be chosen.
     // Rotations are not expressed in a coordinate system (no in_frame involved).
@@ -189,7 +206,8 @@ RefFrame ExpressedInGet::GetParentFrame(string frame_name){
 }
 
 //Return the pose of frame_name relative to world reference frame, expressed in world.
-Eigen::Affine3d ExpressedInGet::PoseWrtWorld(string frame_name){
+
+tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
     RefFrame f = ExpressedInGet::GetParentFrame(frame_name);
     Eigen::Affine3d new_transfo;
     new_transfo.matrix() = f.transformation.matrix();
@@ -198,7 +216,7 @@ Eigen::Affine3d ExpressedInGet::PoseWrtWorld(string frame_name){
         f = ExpressedInGet::GetParentFrame(f.parent_name);
         new_transfo = f.transformation * new_transfo;
     }
-    return new_transfo;
+    return {new_transfo, f.parent_name};
 }
 
 Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
@@ -209,30 +227,39 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     //Using Drake's monogram notation (https://drake.mit.edu/doxygen_cxx/group__multibody__notation__basics.html)
 
     // 1) Make sure frame_name, ref_frame_name and in_frame_name exist in the DB
+    //      This is done in GetParentFrame called from PoseWrtRoot.
 
-    // 2) Get frame_name WRT world EI world
-    auto X_WF_W = PoseWrtWorld(this->frame_name);
+    // 2) Get frame_name WRT root EI root
+    auto [X_WF_W, frame_parent_name] = PoseWrtRoot(this->frame_name);
 
-    // 3) Get ref_frame_name WRT world EI world
-    auto X_WR_W = PoseWrtWorld(this->ref_frame_name);
+    // 3) Get ref_frame_name WRT root EI root
+    auto [X_WR_W, ref_parent_name] = PoseWrtRoot(this->ref_frame_name);
     auto R_WR   = X_WR_W.rotation();
 
-    // 4) Get world WRT ref EI world
+    // 4) Get root WRT ref EI root
     auto X_RW_R = X_WR_W.inverse();
     Eigen::Affine3d X_RW_W = Eigen::Affine3d::Identity();
     X_RW_W.linear()        = X_RW_R.rotation();
     X_RW_W.translation()   = -1 * X_WR_W.translation();
 
-    // 5) Get in_frame_name WRT world EI world
-    auto X_WI_W = PoseWrtWorld(this->in_frame_name);
+    // 5) Get in_frame_name WRT root EI root
+    auto [X_WI_W, in_parent_name] = PoseWrtRoot(this->in_frame_name);
     auto X_IW_I = X_WI_W.inverse();
     auto R_IW   = X_IW_I.rotation();
 
-    // 6) Compute the frame_name WRT ref_frame_name EI world
+    // 6) Make sure all three frames have the same root frame
+    if(frame_parent_name != ref_parent_name){
+        throw runtime_error("The frame "+this->frame_name+" cannot be defined with respect to "+this->ref_frame_name+". Is the frame graph complete?");
+    }
+    if(ref_parent_name != in_parent_name){
+        throw runtime_error("The frame "+this->ref_frame_name+" cannot be defined with respect to "+this->in_frame_name+". Is the frame graph complete?");
+    }
+
+    // 7) Compute the frame_name WRT ref_frame_name EI root
     auto X_RF_R = X_RW_R * X_WF_W;
     auto R_RF   = X_RF_R.rotation();
 
-    // 7) Change the "expressed in"
+    // 8) Change the "expressed in"
     // To represent a position vector (ref_frame --> frame), a coordinate system (in_frame) needs to be chosen.
     // Rotations are not expressed in a coordinate system (no in_frame involved).
     // t_RF_R = R_RI * t_RF_I

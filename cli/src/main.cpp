@@ -10,7 +10,7 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-    argparse::ArgumentParser program("WRT", "0.1.0");
+    argparse::ArgumentParser program("WRT", "0.1.1");
 
     program.add_argument("-q","--quiet")
         .help("If a problem arise, do now output any information, fails quietly.")

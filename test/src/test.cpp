@@ -27,7 +27,7 @@ int main()
     cout << R(2,2) << endl;
     cout << t(0) << endl;
 
-    auto wrt = DbConnector();
+    auto wrt = DbConnector(DbConnector::TEMPORARY_DATABASE);
     Affine3d pose;
     pose.matrix() << 1,0,0,1, 0,1,0,1, 0,0,1,1, 0,0,0,1;
     wrt.In("test").Set("a").Wrt("world").Ei("world").As(pose.matrix());

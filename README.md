@@ -118,16 +118,13 @@ See `cli/src/test.cpp`.
 See `python_bindings/test.py`.
 
 ## TODO
-- ~Allow saving to memory instead of file to avoid cluttering the space with temporary databases~
+- [x] ~Allow saving to memory instead of file to avoid cluttering the space with temporary databases~
   - Using the sqlite3 feature (with :memory: filename) of working in memory is difficult to use with SQLiteCpp as the interface makes it hard to save a reference to a database for later use. Instead, we are now enabling the user to pass a flag to the library such that the database file will be deleted upon destruction of the database object.
-- Allow setting a pose wrt a reference that does not exist yet.
-  - Verify that the reference frame exists when a GET operation is done.
-  - If the pose being set exists, then set reference pose via the inverse transformation.
-- Allow the tree of reference frames to be disconnected from the 'world' frame.
-  - When getting, find the common ancestor of frame and reference frame and use this ancestor instead of 'world'.
+- [x] Allow setting a pose wrt a reference that does not exist yet.
+- [x] Allow the tree of reference frames to be disconnected from the 'world' frame.
 - Test that using this library from multiple scripts produces the intended results.
 - Make Julia bindings to the library.
 - Better documentation of the library.
-- ~Remove files related to SQLiteCpp from the repository.~
+- [x] ~Remove files related to SQLiteCpp from the repository.~
   - Now SQLiteCpp is a submodule in ./extern/
 - Make a x64 Linux executables package for easy installation.
