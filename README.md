@@ -124,6 +124,7 @@ See `python_bindings/test.py`.
 - [x] Allow the tree of reference frames to be disconnected from the 'world' frame.
 - [ ] Use quaternions under the hood to avoid returning unorthogonal matrices after lots of compositions.
 - [ ] Use the shortest path between reference frames in the tree (is it worth it?)
+- [ ] Make it possible to have loops in the pose graph (tf cannot do that), and it would be useful for closed kinematic chains
 - [ ] Test that using this library from multiple scripts produces the intended results.
 - [ ] Make Julia bindings to the library.
 - [ ] Better documentation of the library.
