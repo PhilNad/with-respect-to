@@ -176,9 +176,9 @@ RefFrame ExpressedInGet::GetParentFrame(string frame_name){
         t2     = query.getColumn(13).getDouble();
     }
     if(row_counter == 0)
-        throw runtime_error("The reference frame "+this->ref_frame_name+" does not exist in this world.");
+        throw runtime_error("The reference frame "+this->frame_name+" does not exist in this world.");
     if(row_counter != 1)
-        throw runtime_error("Need a single reference frame "+this->ref_frame_name+".");
+        throw runtime_error("Need a single reference frame "+this->frame_name+".");
 
     //If the value is lower than machine precision, set it to zero.
     R00 = (abs(R00) < DBL_EPSILON) ? 0 : R00;
