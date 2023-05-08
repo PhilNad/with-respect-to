@@ -30,17 +30,14 @@ This is reasonable and allows any program that can run bash commands to use the 
 - [sqlite3](https://sqlite.org/index.html)
 
 ### Dependencies Installation
-All dependencies should be provided by your preferred package manager. PyBind11 should be downloaded automatically from its repository along with this repository and should be located in `extern/pybind11`. Also, for now, this repository contains a copy of SQLiteCpp in `lib/SQLiteCpp-3.1.1`. PyBind11 and SQLiteCpp should be installed to your system to allow CMake to find all the required files:
-```bash
-> cd lib/SQLiteCpp-3.1.1
-> cmake -S . -B build
-> cmake --build build
-> sudo cmake --install build
-```
-and
+Most dependencies should be provided by your preferred package manager. PyBind11 and SQLiteCpp are included in this repository as submodules and can be easily installed with:
 ```bash
 > git submodule update --init --recursive
 > cd extern/pybind11
+> cmake -S . -B build
+> cmake --build build
+> sudo cmake --install build
+> cd ../SQLiteCpp
 > cmake -S . -B build
 > cmake --build build
 > sudo cmake --install build
