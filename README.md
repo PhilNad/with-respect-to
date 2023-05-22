@@ -13,7 +13,7 @@ Although this library might seem to be similar to [tf2](http://wiki.ros.org/tf2)
   If you are already running ROS for other reasons, it might make more sense to continue using it. However, it might seem excessive to run the whole ROS ecosystem for the sole reason of recording transformations.
 - ### **2.**  tf2 does transformation interpolation, WRT does not.
   One of the primary use case for tf2 is to linearly interpolate poses through time. WRT does not do such operation and assumes that all transformations are exact at the time at which they are accessed. If the previous pose of a moving frame must be recorded, a timestamp can be appended to the name of the frame to differentiate between the older and newer frames.
-- ### **3** tf2 is designed as a distributed system while WRT is designed as a centralized system.
+- ### **3.** tf2 is designed as a distributed system while WRT is designed as a centralized system.
   While it is possible (and easy) to use WRT over ethernet through [a network file system](https://ubuntu.com/server/docs/service-nfs), it is certainly [not optimal](https://www.sqlite.org/useovernet.html). Conversely, while it is possible to use tf2 in a setup consisting in a single machine, it really shines when used by many machines over a network. However, be wary of the [bandwidth requirements](http://wiki.ros.org/tf2/Design#tf_messages_do_not_deal_with_low_bandwidth_networks_well) imposed by the frequent transfer of [ROS messages](https://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/TransformStamped.html) over the network.
 
 ## Performances
@@ -135,8 +135,7 @@ You can use [SQLiteStudio](https://github.com/pawelsalawa/sqlitestudio) to open 
 - [x] Allow setting a pose wrt a reference that does not exist yet.
 - [x] Allow the tree of reference frames to be disconnected from the 'world' frame.
 - [x] Use quaternions under the hood to avoid returning unorthogonal matrices after lots of compositions.
-- [ ] Use the shortest path between reference frames in the tree (is it worth it?)
-- [ ] Make it possible to have loops in the pose graph (tf cannot do that), and it would be useful for closed kinematic chains
+- [ ] Improve speed/concurrency, getting "RuntimeError: database is locked" when stress-testing.
 - [ ] Test that using this library from multiple scripts produces the intended results.
 - [ ] Make Julia bindings to the library.
 - [ ] Better documentation of the library.

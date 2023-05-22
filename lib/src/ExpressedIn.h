@@ -28,6 +28,7 @@ class SetAs{
         string frame_name;
         string ref_frame_name;
         string in_frame_name;
+        int timeout;
     public:
         SetAs(string, string, string, string);
         ~SetAs();
@@ -41,6 +42,7 @@ private:
     string frame_name;
     string ref_frame_name;
     string in_frame_name;
+    int timeout;
     RefFrame GetParentFrame(string frame_name);
     tuple<Eigen::Affine3d, string> PoseWrtRoot(string frame_name);
 public:
@@ -56,6 +58,7 @@ private:
     string frame_name;
     string ref_frame_name;
     string in_frame_name;
+    int timeout;
 public:
     ExpressedInSet(string, string, string);
     ~ExpressedInSet();

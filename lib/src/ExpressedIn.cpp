@@ -58,6 +58,8 @@ SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string
     in_frame_name(in_frame_name){
     if(!VerifyInput(frame_name) || !VerifyInput(ref_frame_name) || !VerifyInput(in_frame_name))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the frame name.");
+    //Set the timeout to 10 seconds
+    this->timeout = 10000;
 }
 
 SetAs::~SetAs(){}
@@ -71,7 +73,7 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     if(code < 0)
         throw runtime_error("The format of the submitted matrix is wrong ("+to_string(code)+").");
     //List all existing reference names
-    SQLite::Database db(this->world_name+".db", SQLite::OPEN_READWRITE);
+    SQLite::Database db(this->world_name+".db", SQLite::OPEN_READWRITE, this->timeout);
 
     SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
     query.bind(1, this->ref_frame_name);
@@ -151,12 +153,14 @@ ExpressedInGet::ExpressedInGet(string world_name, string frame_name, string ref_
     ref_frame_name(ref_frame_name){
     if(!VerifyInput(frame_name) || !VerifyInput(ref_frame_name))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the frame name.");
+    //Set the timeout to 10 seconds
+    this->timeout = 10000;
 }
 
 ExpressedInGet::~ExpressedInGet(){}
 
 RefFrame ExpressedInGet::GetParentFrame(string frame_name){
-    SQLite::Database db(this->world_name+".db", SQLite::OPEN_READONLY);
+    SQLite::Database db(this->world_name+".db", SQLite::OPEN_READONLY, this->timeout);
 
     SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
     query.bind(1, frame_name);
@@ -239,6 +243,16 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
         new_pos = ori * new_pos + pos;
         //Go deeper in the tree
         f = parent_frame;
+        //If the name of the parent frame is the same as the initial frame, we have a loop.
+        if(f.name == frame_name){
+            SQLite::Database db(this->world_name+".db", SQLite::OPEN_READWRITE, this->timeout);
+            SQLite::Transaction transaction(db);
+            SQLite::Statement   q1(db, "DELETE FROM frames WHERE name IS ?");
+            q1.bind(1, this->frame_name);
+            q1.executeStep();
+            transaction.commit();
+            throw runtime_error("The frame "+frame_name+" is part of a loop. Removing it to break the loop.");
+        }
     }
 
     Eigen::Affine3d new_transfo = Eigen::Affine3d::Identity();
@@ -303,7 +317,8 @@ ExpressedInSet::ExpressedInSet(string world_name, string frame_name, string ref_
     world_name(world_name), 
     frame_name(frame_name), 
     ref_frame_name(ref_frame_name){
-
+    //Set the timeout to 10 seconds
+    this->timeout = 10000;
 }
 
 ExpressedInSet::~ExpressedInSet(){}
