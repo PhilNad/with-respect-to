@@ -7,6 +7,15 @@ Simple library that manages databases of 3D transformations with explicit access
 - Accessible. Information is accessible from a variety of interfaces on Linux (Python, Julia, Bash).
 - Minimalist. The API contains as few methods as possible.
 
+## Differences With tf2
+Although this library might seem to be similar to [tf2](http://wiki.ros.org/tf2), there are notable differences that should be taken into account when choosing which one to use:
+- ### **1.** tf2 requires running the ROS ecosystem, WRT does not.
+  If you are already running ROS for other reasons, it might make more sense to continue using it. However, it might seem excessive to run the whole ROS ecosystem for the sole reason of recording transformations.
+- ### **2.**  tf2 does transformation interpolation, WRT does not.
+  One of the primary use case for tf2 is to linearly interpolate poses through time. WRT does not do such operation and assumes that all transformations are exact at the time at which they are accessed. If the previous pose of a moving frame must be recorded, a timestamp can be appended to the name of the frame to differentiate between the older and newer frames.
+- ### **3** tf2 is designed as a distributed system while WRT is designed as a centralized system.
+  While it is possible (and easy) to use WRT over ethernet through [a network file system](https://ubuntu.com/server/docs/service-nfs), it is certainly [not optimal](https://www.sqlite.org/useovernet.html). Conversely, while it is possible to use tf2 in a setup consisting in a single machine, it really shines when used by many machines over a network. However, be wary of the [bandwidth requirements](http://wiki.ros.org/tf2/Design#tf_messages_do_not_deal_with_low_bandwidth_networks_well) imposed by the frequent transfer of [ROS messages](https://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/TransformStamped.html) over the network.
+
 ## Performances
 Currently, a GET operation performed from within Bash takes about 0.009 seconds to execute while a SET operation from Bash takes about 0.04 seconds.
 This is reasonable and allows any program that can run bash commands to use the interface.
@@ -94,7 +103,7 @@ Optional arguments:
 --As         	If setting a frame, a string representation of the array defining the pose with rotation R and translation t: [[R00,R01,R02,t0],[R10,R11,R12,t1],[R20,R21,R22,t2],[0,0,0,1]]
 ```
 
-### Example from Bash
+### Example Usage From Bash
 ```bash
 > WRT --In test --Get d --Wrt a --Ei a
  0 -1  0  1
@@ -111,11 +120,14 @@ The format of the submitted matrix is wrong (-3).
 The reference frame a does not exist in this world.
 ```
 
-### Example from C++
-See `cli/src/test.cpp`.
+### Example Usage From C++
+See [test/src/test.cpp](test/src/test.cpp).
 
-### Example from Python
-See `python_bindings/test.py`.
+### Example Usage From Python
+See [python_bindings/src/test.py](python_bindings/src/test.py).
+
+## Debugging
+You can use [SQLiteStudio](https://github.com/pawelsalawa/sqlitestudio) to open the database file and read its content through a GUI.
 
 ## TODO
 - [x] ~Allow saving to memory instead of file to avoid cluttering the space with temporary databases~
