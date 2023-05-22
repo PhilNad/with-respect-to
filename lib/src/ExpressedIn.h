@@ -6,6 +6,7 @@ class ExpressedInSet;
 
 #include "DbConnector.h"
 #include <Eigen/Eigen>
+#include <Eigen/Geometry>
 #include <string>
 using namespace std;
 
@@ -13,10 +14,12 @@ using namespace std;
 class RefFrame{
     public:
         RefFrame(string, string, Eigen::Affine3d);
+        RefFrame(string, string, Eigen::Quaterniond, Eigen::Vector3d);
         ~RefFrame();
         string name;
         string parent_name;
-        Eigen::Affine3d transformation;
+        Eigen::Quaterniond rotation;
+        Eigen::Vector3d translation;
 };
 
 class SetAs{

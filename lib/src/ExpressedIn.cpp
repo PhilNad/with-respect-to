@@ -26,13 +26,27 @@ int VerifyMatrix(Eigen::Affine3d transfo_matrix){
     return 0;
 }
 
+//RefFrame constructor taking a transformation matrix as input
 RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Affine3d transfo):
     name(frame_name),
     parent_name(parent_frame_name),
-    transformation(transfo){
+    rotation(transfo.rotation()),
+    translation(transfo.translation()){
     int code = VerifyMatrix(transfo);
     if(code < 0)
         throw runtime_error("The format of the submitted matrix is wrong ("+to_string(code)+").");
+    //Normalize the quaternion
+    rotation.normalize();
+}
+
+//RefFrame constructor taking a quaternion and a translation vector as input
+RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Quaterniond q, Eigen::Vector3d t):
+    name(frame_name),
+    parent_name(parent_frame_name),
+    rotation(q),
+    translation(t){
+        //Normalize the quaternion
+        rotation.normalize();
 }
 
 RefFrame::~RefFrame(){}
@@ -48,6 +62,8 @@ SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string
 
 SetAs::~SetAs(){}
 
+//Write to the database the transformation matrix defining the frame frame_name with respect to the frame ref_frame_name
+// and expressed in the frame ref_frame_name, that is X_RF_R.
 void SetAs::As(Eigen::Matrix4d transformation_matrix){
     Eigen::Affine3d transfo_matrix;
     transfo_matrix.matrix() = transformation_matrix;
@@ -93,9 +109,9 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
         R_RI = Eigen::Matrix3d::Identity();
     }
 
-    // To represent a position vector (ref_frame --> frame), a coordinate system (in_frame) needs to be chosen.
-    // Rotations are not expressed in a coordinate system (no in_frame involved).
+    // The position vector is expressed in the ref_frame through
     // t_RF_R = R_RI * t_RF_I
+    // such that the stored pose is X_RF_R = [R_RF, t_RF_R; 0,0,0,1]
     auto R = transfo_matrix.rotation();
     auto t = R_RI * transfo_matrix.translation(); 
 
@@ -209,13 +225,26 @@ RefFrame ExpressedInGet::GetParentFrame(string frame_name){
 
 tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
     RefFrame f = ExpressedInGet::GetParentFrame(frame_name);
-    Eigen::Affine3d new_transfo;
-    new_transfo.matrix() = f.transformation.matrix();
+    Eigen::Quaterniond new_ori(f.rotation);
+    Eigen::Vector3d new_pos(f.translation);
     
+    //The parent_name of the root frame is empty so we can use it as a stop condition.
     while(f.parent_name.length() > 0){
-        f = ExpressedInGet::GetParentFrame(f.parent_name);
-        new_transfo = f.transformation * new_transfo;
+        auto parent_frame = ExpressedInGet::GetParentFrame(f.parent_name);
+        Eigen::Quaterniond ori(parent_frame.rotation);
+        Eigen::Vector3d pos(parent_frame.translation);
+        //Compute the composed orientation
+        new_ori = ori * new_ori;
+        //Compute the composed position
+        new_pos = ori * new_pos + pos;
+        //Go deeper in the tree
+        f = parent_frame;
     }
+
+    Eigen::Affine3d new_transfo = Eigen::Affine3d::Identity();
+    new_transfo.linear()        = new_ori.toRotationMatrix();
+    new_transfo.translation()   = new_pos;
+
     return {new_transfo, f.parent_name};
 }
 
