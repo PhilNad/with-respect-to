@@ -43,7 +43,10 @@ Most dependencies should be provided by your preferred package manager. PyBind11
 > sudo cmake --install build
 ```
 
-## Installation
+## Installation From Pre-Compiled Binaries
+The [latest release](https://github.com/PhilNad/with-respect-to/releases) contains pre-compiled 64-bit binaries for Linux, that can be used directly once placed in an appropriate directory.
+
+## Installation From Source Code
 ### Build Executables
 ```bash
 > git clone https://github.com/PhilNad/with-respect-to.git
@@ -119,7 +122,7 @@ See `python_bindings/test.py`.
   - Using the sqlite3 feature (with :memory: filename) of working in memory is difficult to use with SQLiteCpp as the interface makes it hard to save a reference to a database for later use. Instead, we are now enabling the user to pass a flag to the library such that the database file will be deleted upon destruction of the database object.
 - [x] Allow setting a pose wrt a reference that does not exist yet.
 - [x] Allow the tree of reference frames to be disconnected from the 'world' frame.
-- [ ] Use quaternions under the hood to avoid returning unorthogonal matrices after lots of compositions.
+- [x] Use quaternions under the hood to avoid returning unorthogonal matrices after lots of compositions.
 - [ ] Use the shortest path between reference frames in the tree (is it worth it?)
 - [ ] Make it possible to have loops in the pose graph (tf cannot do that), and it would be useful for closed kinematic chains
 - [ ] Test that using this library from multiple scripts produces the intended results.
@@ -127,4 +130,4 @@ See `python_bindings/test.py`.
 - [ ] Better documentation of the library.
 - [x] ~Remove files related to SQLiteCpp from the repository.~
   - Now SQLiteCpp is a submodule in ./extern/
-- [ ] Make a x64 Linux executables package for easy installation.
+- [x] Make a x64 Linux executables package for easy installation.
