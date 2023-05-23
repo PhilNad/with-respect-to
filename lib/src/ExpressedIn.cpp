@@ -74,6 +74,8 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
         throw runtime_error("The format of the submitted matrix is wrong ("+to_string(code)+").");
     //List all existing reference names
     SQLite::Database db(this->world_name+".db", SQLite::OPEN_READWRITE, this->timeout);
+    db.exec("PRAGMA journal_mode=WAL;");
+    db.exec("PRAGMA synchronous = off;");
 
     SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
     query.bind(1, this->ref_frame_name);
@@ -161,6 +163,8 @@ ExpressedInGet::~ExpressedInGet(){}
 
 RefFrame ExpressedInGet::GetParentFrame(string frame_name){
     SQLite::Database db(this->world_name+".db", SQLite::OPEN_READONLY, this->timeout);
+    db.exec("PRAGMA journal_mode=WAL;");
+    db.exec("PRAGMA synchronous = off;");
 
     SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
     query.bind(1, frame_name);
@@ -226,7 +230,7 @@ RefFrame ExpressedInGet::GetParentFrame(string frame_name){
 }
 
 //Return the pose of frame_name relative to world reference frame, expressed in world.
-
+// or if a kinematic loop is detected, return the frame_name as the parent frame.
 tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
     RefFrame f = ExpressedInGet::GetParentFrame(frame_name);
     Eigen::Quaterniond new_ori(f.rotation);
@@ -243,15 +247,10 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
         new_pos = ori * new_pos + pos;
         //Go deeper in the tree
         f = parent_frame;
-        //If the name of the parent frame is the same as the initial frame, we have a loop.
+        //If the name of the parent frame is the same as the initial frame, we have a loop
+        // and its impossible to return the pose of the frame relative to the root frame.
         if(f.name == frame_name){
-            SQLite::Database db(this->world_name+".db", SQLite::OPEN_READWRITE, this->timeout);
-            SQLite::Transaction transaction(db);
-            SQLite::Statement   q1(db, "DELETE FROM frames WHERE name IS ?");
-            q1.bind(1, this->frame_name);
-            q1.executeStep();
-            transaction.commit();
-            throw runtime_error("The frame "+frame_name+" is part of a loop. Removing it to break the loop.");
+            throw runtime_error("The frame "+this->frame_name+" is part of a kinematic loop.");
         }
     }
 

@@ -17,8 +17,11 @@ Although this library might seem to be similar to [tf2](http://wiki.ros.org/tf2)
   While it is possible (and easy) to use WRT over ethernet through [a network file system](https://ubuntu.com/server/docs/service-nfs), it is certainly [not optimal](https://www.sqlite.org/useovernet.html). Conversely, while it is possible to use tf2 in a setup consisting in a single machine, it really shines when used by many machines over a network. However, be wary of the [bandwidth requirements](http://wiki.ros.org/tf2/Design#tf_messages_do_not_deal_with_low_bandwidth_networks_well) imposed by the frequent transfer of [ROS messages](https://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/TransformStamped.html) over the network.
 
 ## Performances
-Currently, a GET operation performed from within Bash takes about 0.009 seconds to execute while a SET operation from Bash takes about 0.04 seconds.
-This is reasonable and allows any program that can run bash commands to use the interface.
+[Stress-testing the library](test/src/stress-test.py) through the Python interface on a Lenovo X1 Yoga 1st Gen i5 (2016), we got the following results:
+- With a tree 10 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.003 seconds (>300 Hz) on over 99% of the operations.
+- With a tree 10 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.0058 seconds (>170 Hz) on over 99% of the operations.
+- With a tree 50 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.0048 seconds (>200 Hz) on over 99% of the operations.
+- With a tree 50 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.025 seconds (40 Hz) on over 99% of the operations.
 
 ## Design
 - Uses the [Eigen library](https://eigen.tuxfamily.org)
@@ -135,7 +138,6 @@ You can use [SQLiteStudio](https://github.com/pawelsalawa/sqlitestudio) to open 
 - [x] Allow setting a pose wrt a reference that does not exist yet.
 - [x] Allow the tree of reference frames to be disconnected from the 'world' frame.
 - [x] Use quaternions under the hood to avoid returning unorthogonal matrices after lots of compositions.
-- [ ] Improve speed/concurrency, getting "RuntimeError: database is locked" when stress-testing.
 - [ ] Test that using this library from multiple scripts produces the intended results.
 - [ ] Make Julia bindings to the library.
 - [ ] Better documentation of the library.

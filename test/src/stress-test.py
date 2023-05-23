@@ -80,6 +80,9 @@ def init_argparse():
     parser.add_argument(
         "-t", "--test", type=str, required=False, default="SET", help="Type of request to send (SET or GET)"
     )
+    parser.add_argument(
+        "-i", "--iterations", type=int, required=False, default=10000, help="Number of iterations to perform before returning statistics"
+    )
     return parser
 
 def parse_arguments():
@@ -95,6 +98,10 @@ def parse_arguments():
     if args.nb_levels < 0:
         raise ValueError("Number of levels must be a positive integer")
     
+    # Check if the number of iterations is a positive integer
+    if args.iterations < 0:
+        raise ValueError("Number of iterations must be a positive integer")
+    
     return args
 
 if __name__ == '__main__':
@@ -107,17 +114,23 @@ if __name__ == '__main__':
     
     # Send requests as quickly as possible
     timing_list = []
-    while True:
+    for i in range(args.iterations):
         
         if args.test == "SET":
             time_taken = test_set(db, args.nb_levels)
         else:
             time_taken = test_get(db, args.nb_levels)
+        
         timing_list.append(time_taken)
 
-        if len(timing_list) % 100 == 0:
-            moving_average_time = np.mean(timing_list)
-            print("Average frequency: {} Hz".format(1/moving_average_time))
-            #Do a quick pause to allow the user to Ctrl+C
-            time.sleep(0.1)
-            timing_list = []
+    #Compute statistics
+    timing_list = np.array(timing_list)
+    timing_list = np.sort(timing_list)
+    #Remove the outliers
+    outliers_removed = timing_list[timing_list < timing_list[int(0.99*len(timing_list))]]
+    print("For 99% of the requests, the time taken is:")
+    print("Average time taken: {} s".format(np.mean(outliers_removed)))
+    print("Standard deviation: {} s".format(np.std(outliers_removed)))
+    print("Minimum time taken: {} s".format(np.min(outliers_removed)))
+    print("Maximum time taken: {} s".format(np.max(outliers_removed)))
+    print("Average frequency: {} Hz".format(1/np.mean(outliers_removed)))
