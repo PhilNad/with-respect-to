@@ -18,10 +18,14 @@ Although this library might seem to be similar to [tf2](http://wiki.ros.org/tf2)
 
 ## Performances
 [Stress-testing the library](test/src/stress-test.py) through the Python interface on a Lenovo X1 Yoga 1st Gen i5 (2016), we got the following results:
-- With a tree 10 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.003 seconds (>300 Hz) on over 99% of the operations.
-- With a tree 10 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.0058 seconds (>170 Hz) on over 99% of the operations.
-- With a tree 50 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.0048 seconds (>200 Hz) on over 99% of the operations.
-- With a tree 50 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.025 seconds (40 Hz) on over 99% of the operations.
+- With a tree 10 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.0026 seconds (>390 Hz) on over 99% of the operations.
+- With a tree 10 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.0026 seconds (>380 Hz) on over 99% of the operations.
+- With a tree 50 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.0031 seconds (>325 Hz) on over 99% of the operations.
+- With a tree 50 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.0032 seconds (>315 Hz) on over 99% of the operations.
+- With a tree 50 levels deep, with 2 concurrent readers and 1 writer, the average time for an operation was 0.0032 seconds (>315 Hz) on over 99% of the operations.
+
+The GET operations seems to be about 3% slower than the SET operations for the same tree depth. The depth of the tree seems to have a much greater impact as the operations done on the 50 levels tree are about 20% slower than the operations done on the 10 levels tree. Clearly, a tree depth of 50 levels is an edge-case.
+
 
 ## Design
 - Uses the [Eigen library](https://eigen.tuxfamily.org)

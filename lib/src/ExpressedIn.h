@@ -45,6 +45,7 @@ private:
     int timeout;
     RefFrame GetParentFrame(string frame_name);
     tuple<Eigen::Affine3d, string> PoseWrtRoot(string frame_name);
+    tuple<Eigen::Affine3d, string> PoseWrtRootSQL(string frame_name);
 public:
     ExpressedInGet(string, string, string);
     ~ExpressedInGet();

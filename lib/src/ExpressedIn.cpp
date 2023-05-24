@@ -261,6 +261,97 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
     return {new_transfo, f.parent_name};
 }
 
+//Return the pose of frame_name relative to world reference frame, expressed in world.
+// This version performs everything from within the database, increasing drastically the speed.
+// Currently this does not use quaternions as rotation matrices are used in the database.
+// WARNING: There is a limit of 100 recursions, if you have a kinematic link longer than that, it will fail.
+tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name){
+    SQLite::Database db(this->world_name+".db", SQLite::OPEN_READWRITE, this->timeout);
+    db.exec("PRAGMA journal_mode=WAL;");
+    db.exec("PRAGMA synchronous = off;");
+
+    SQLite::Statement   query(db, "\
+    WITH RECURSIVE get_parent (n, p, b00, b01, b02, b10, b11, b12, b20, b21, b22, bx, by, bz) \
+    AS ( \
+        select frames.*  from frames where frames.name = ? \
+        UNION ALL \
+        SELECT name, parent, \
+        r00*b00+r01*b10+r02*b20, \
+        r00*b01+r01*b11+r02*b21, \
+        r00*b02+r01*b12+r02*b22, \
+        r10*b00+r11*b10+r12*b20, \
+        r10*b01+r11*b11+r12*b21, \
+        r10*b02+r11*b12+r12*b22, \
+        r20*b00+r21*b10+r22*b20, \
+        r20*b01+r21*b11+r22*b21, \
+        r20*b02+r21*b12+r22*b22, \
+        r00*bx+r01*by+r02*bz+t0, \
+        r10*bx+r11*by+r12*bz+t1, \
+        r20*bx+r21*by+r22*bz+t2 \
+        FROM frames, get_parent WHERE name = get_parent.p \
+        LIMIT 100 \
+    ) \
+    SELECT * FROM get_parent where n='world'; \
+    ");
+    query.bind(1, frame_name);
+
+    //Values to be read from the database
+    string name;
+    string parent_name;
+    double R00, R01, R02;
+    double R10, R11, R12;
+    double R20, R21, R22;
+    double t0, t1, t2;
+    //Verify that the frame exists.
+    int row_counter = 0;
+    while (query.executeStep()){
+        row_counter++;
+        name = query.getColumn(0).getText();
+        parent_name = query.getColumn(1).getText();
+
+        R00    = query.getColumn(2).getDouble();
+        R01    = query.getColumn(3).getDouble();
+        R02    = query.getColumn(4).getDouble();
+        
+        R10    = query.getColumn(5).getDouble();
+        R11    = query.getColumn(6).getDouble();
+        R12    = query.getColumn(7).getDouble();
+        
+        R20    = query.getColumn(8).getDouble();
+        R21    = query.getColumn(9).getDouble();
+        R22    = query.getColumn(10).getDouble();
+
+        t0     = query.getColumn(11).getDouble();
+        t1     = query.getColumn(12).getDouble();
+        t2     = query.getColumn(13).getDouble();
+    }
+    if(row_counter == 0)
+        throw runtime_error("The reference frame "+this->frame_name+" does not exist in this world.");
+
+    //If the value is lower than machine precision, set it to zero.
+    R00 = (abs(R00) < DBL_EPSILON) ? 0 : R00;
+    R01 = (abs(R01) < DBL_EPSILON) ? 0 : R01;
+    R02 = (abs(R02) < DBL_EPSILON) ? 0 : R02;
+    R10 = (abs(R10) < DBL_EPSILON) ? 0 : R10;
+    R11 = (abs(R11) < DBL_EPSILON) ? 0 : R11;
+    R12 = (abs(R12) < DBL_EPSILON) ? 0 : R12;
+    R20 = (abs(R20) < DBL_EPSILON) ? 0 : R20;
+    R21 = (abs(R21) < DBL_EPSILON) ? 0 : R21;
+    R22 = (abs(R22) < DBL_EPSILON) ? 0 : R22;
+    t0 = (abs(t0) < DBL_EPSILON) ? 0 : t0;
+    t1 = (abs(t1) < DBL_EPSILON) ? 0 : t1;
+    t2 = (abs(t2) < DBL_EPSILON) ? 0 : t2;
+
+    //Build a transformation matrix
+    Eigen::Affine3d tr;
+    tr.matrix() <<  R00, R01, R02, t0,
+                    R10, R11, R12, t1,
+                    R20, R21, R22, t2,
+                    0,0,0,1;
+
+    return {tr, "world"};
+}
+
 Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     this->in_frame_name = in_frame_name;
     if(!VerifyInput(in_frame_name))
@@ -272,10 +363,10 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     //      This is done in GetParentFrame called from PoseWrtRoot.
 
     // 2) Get frame_name WRT root EI root
-    auto [X_WF_W, frame_parent_name] = PoseWrtRoot(this->frame_name);
+    auto [X_WF_W, frame_parent_name] = PoseWrtRootSQL(this->frame_name);
 
     // 3) Get ref_frame_name WRT root EI root
-    auto [X_WR_W, ref_parent_name] = PoseWrtRoot(this->ref_frame_name);
+    auto [X_WR_W, ref_parent_name] = PoseWrtRootSQL(this->ref_frame_name);
     auto R_WR   = X_WR_W.rotation();
 
     // 4) Get root WRT ref EI root
@@ -285,7 +376,7 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     X_RW_W.translation()   = -1 * X_WR_W.translation();
 
     // 5) Get in_frame_name WRT root EI root
-    auto [X_WI_W, in_parent_name] = PoseWrtRoot(this->in_frame_name);
+    auto [X_WI_W, in_parent_name] = PoseWrtRootSQL(this->in_frame_name);
     auto X_IW_I = X_WI_W.inverse();
     auto R_IW   = X_IW_I.rotation();
 

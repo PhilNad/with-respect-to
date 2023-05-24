@@ -25,6 +25,16 @@ DbConnector::~DbConnector(){
         if(std::filesystem::exists(p)){
             std::filesystem::remove(p);
         }
+        //Remove the test.db-shm file if it exists.
+        p = std::filesystem::path{this->db_path + "-shm"};
+        if(std::filesystem::exists(p)){
+            std::filesystem::remove(p);
+        }
+        //Remove the test.db-wal file if it exists.
+        p = std::filesystem::path{this->db_path + "-wal"};
+        if(std::filesystem::exists(p)){
+            std::filesystem::remove(p);
+        }
     }
 }
 
@@ -93,6 +103,8 @@ GetSet DbConnector::In(string world_name){
         //Initialize the database.
         //Connects to the database and create it if it doesnt already exist.
         SQLite::Database db(this->db_path, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
+        db.exec("PRAGMA journal_mode=WAL;");
+        db.exec("PRAGMA synchronous = off;");
         /*
         Each row describes a single frame with
             - name : Unique string
