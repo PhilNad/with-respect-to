@@ -261,7 +261,8 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
     return {new_transfo, f.parent_name};
 }
 
-//Return the pose of frame_name relative to world reference frame, expressed in world.
+//Return the pose of frame_name relative to root reference frame, expressed in the root frame.
+// This version is independant of the name of the root frame.
 // This version performs everything from within the database, increasing drastically the speed.
 // Currently this does not use quaternions as rotation matrices are used in the database.
 // WARNING: There is a limit of 100 recursions, if you have a kinematic link longer than that, it will fail.
@@ -270,12 +271,17 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name)
     db.exec("PRAGMA journal_mode=WAL;");
     db.exec("PRAGMA synchronous = off;");
 
+    //This query create a temporary table (CTE) through a recursive query that is started with the
+    // first SELECT statement, which generate a row that is then the input to the following SELECT.
+    // The second SELECT performs transform composition. So the query go from a leaf to a root,
+    // compositing the transform at each step. The third SELECT is used to get the result obtained
+    // at the end of the recursive process, without prior knowledge about the name of the root frame.
     SQLite::Statement   query(db, "\
-    WITH RECURSIVE get_parent (n, p, b00, b01, b02, b10, b11, b12, b20, b21, b22, bx, by, bz) \
+    WITH RECURSIVE get_parent (i, n, p, b00, b01, b02, b10, b11, b12, b20, b21, b22, bx, by, bz) \
     AS ( \
-        select frames.*  from frames where frames.name = ? \
+        select 0, frames.* from frames where frames.name = ? \
         UNION ALL \
-        SELECT name, parent, \
+        SELECT i+1, name, parent, \
         r00*b00+r01*b10+r02*b20, \
         r00*b01+r01*b11+r02*b21, \
         r00*b02+r01*b12+r02*b22, \
@@ -291,7 +297,7 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name)
         FROM frames, get_parent WHERE name = get_parent.p \
         LIMIT 100 \
     ) \
-    SELECT * FROM get_parent where n='world'; \
+    SELECT n, p, b00, b01, b02, b10, b11, b12, b20, b21, b22, bx, by, bz FROM get_parent ORDER BY i DESC LIMIT 1; \
     ");
     query.bind(1, frame_name);
 
@@ -325,8 +331,16 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name)
         t1     = query.getColumn(12).getDouble();
         t2     = query.getColumn(13).getDouble();
     }
+
+    string root_frame_name;
     if(row_counter == 0)
-        throw runtime_error("The reference frame "+this->frame_name+" does not exist in this world.");
+        throw runtime_error("The reference frame "+frame_name+" does not exist in this world.");
+    else{
+        if(name == "world")
+            root_frame_name = "world";
+        else
+            root_frame_name = parent_name;
+    }
 
     //If the value is lower than machine precision, set it to zero.
     R00 = (abs(R00) < DBL_EPSILON) ? 0 : R00;
@@ -349,7 +363,7 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name)
                     R20, R21, R22, t2,
                     0,0,0,1;
 
-    return {tr, "world"};
+    return {tr, root_frame_name};
 }
 
 Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
@@ -359,43 +373,57 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     
     //Using Drake's monogram notation (https://drake.mit.edu/doxygen_cxx/group__multibody__notation__basics.html)
 
-    // 1) Make sure frame_name, ref_frame_name and in_frame_name exist in the DB
-    //      This is done in GetParentFrame called from PoseWrtRoot.
+    //Get frame_name WRT root EI root
+    auto [X_WF_W, frame_root_name] = PoseWrtRootSQL(this->frame_name);
 
-    // 2) Get frame_name WRT root EI root
-    auto [X_WF_W, frame_parent_name] = PoseWrtRootSQL(this->frame_name);
-
-    // 3) Get ref_frame_name WRT root EI root
-    auto [X_WR_W, ref_parent_name] = PoseWrtRootSQL(this->ref_frame_name);
+    //Get ref_frame_name WRT root EI root
+    auto X_WR_W = Eigen::Affine3d::Identity();
+    auto ref_root_name = this->ref_frame_name;
+    if(frame_root_name == this->ref_frame_name){
+        //The root frame is the ref_frame_name so X_WR_W is identity and there is nothing to do.
+    }else{
+        //Otherwise, we need to find its pose relative to the root.
+        auto [pose, root_name] = PoseWrtRootSQL(this->ref_frame_name);
+        X_WR_W = pose;
+        ref_root_name = root_name;
+    }
     auto R_WR   = X_WR_W.rotation();
 
-    // 4) Get root WRT ref EI root
+    //Get in_frame_name WRT root EI root
+    auto X_WI_W = Eigen::Affine3d::Identity();
+    if(frame_root_name == ref_root_name){
+        if(frame_root_name == in_frame_name){
+            //The root frame is already the frame in which we want to express the transform
+            // so X_WI_W is identity and there is nothing to do.
+        }else{
+            //Otherwise, we need to find its pose relative to the root.
+            auto [pose, in_root_name] = PoseWrtRootSQL(this->in_frame_name);
+            X_WI_W = pose;
+            //Make sure all three frames have the same root frame
+            if(ref_root_name != in_root_name){
+                throw runtime_error("The frame "+this->ref_frame_name+" cannot be defined with respect to "+this->in_frame_name+". Is the frame graph complete?");
+            }
+        }
+    }else{
+        throw runtime_error("The frame "+this->frame_name+" cannot be defined with respect to "+this->ref_frame_name+". Is the frame graph complete?");
+    }
+
+    //Get root WRT ref EI root
     auto X_RW_R = X_WR_W.inverse();
     Eigen::Affine3d X_RW_W = Eigen::Affine3d::Identity();
     X_RW_W.linear()        = X_RW_R.rotation();
     X_RW_W.translation()   = -1 * X_WR_W.translation();
 
-    // 5) Get in_frame_name WRT root EI root
-    auto [X_WI_W, in_parent_name] = PoseWrtRootSQL(this->in_frame_name);
-    auto X_IW_I = X_WI_W.inverse();
-    auto R_IW   = X_IW_I.rotation();
-
-    // 6) Make sure all three frames have the same root frame
-    if(frame_parent_name != ref_parent_name){
-        throw runtime_error("The frame "+this->frame_name+" cannot be defined with respect to "+this->ref_frame_name+". Is the frame graph complete?");
-    }
-    if(ref_parent_name != in_parent_name){
-        throw runtime_error("The frame "+this->ref_frame_name+" cannot be defined with respect to "+this->in_frame_name+". Is the frame graph complete?");
-    }
-
-    // 7) Compute the frame_name WRT ref_frame_name EI root
+    //Compute the frame_name WRT ref_frame_name EI root
     auto X_RF_R = X_RW_R * X_WF_W;
     auto R_RF   = X_RF_R.rotation();
 
-    // 8) Change the "expressed in"
+    //Change the "expressed in"
     // To represent a position vector (ref_frame --> frame), a coordinate system (in_frame) needs to be chosen.
     // Rotations are not expressed in a coordinate system (no in_frame involved).
     // t_RF_R = R_RI * t_RF_I
+    auto X_IW_I = X_WI_W.inverse();
+    auto R_IW   = X_IW_I.rotation();
     Eigen::Affine3d X_RF_I = Eigen::Affine3d::Identity();
     X_RF_I.linear()        = R_RF;
     X_RF_I.translation()   = R_IW * R_WR * X_RF_R.translation();
