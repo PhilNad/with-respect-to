@@ -135,16 +135,3 @@ See [python_bindings/src/test.py](python_bindings/src/test.py).
 
 ## Debugging
 You can use [SQLiteStudio](https://github.com/pawelsalawa/sqlitestudio) to open the database file and read its content through a GUI.
-
-## TODO
-- [x] ~Allow saving to memory instead of file to avoid cluttering the space with temporary databases~
-  - Using the sqlite3 feature (with :memory: filename) of working in memory is difficult to use with SQLiteCpp as the interface makes it hard to save a reference to a database for later use. Instead, we are now enabling the user to pass a flag to the library such that the database file will be deleted upon destruction of the database object.
-- [x] Allow setting a pose wrt a reference that does not exist yet.
-- [x] Allow the tree of reference frames to be disconnected from the 'world' frame.
-- [x] Use quaternions under the hood to avoid returning unorthogonal matrices after lots of compositions.
-- [ ] Test that using this library from multiple scripts produces the intended results.
-- [ ] Make Julia bindings to the library.
-- [ ] Better documentation of the library.
-- [x] ~Remove files related to SQLiteCpp from the repository.~
-  - Now SQLiteCpp is a submodule in ./extern/
-- [x] Make a x64 Linux executables package for easy installation.

@@ -65,7 +65,7 @@ SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string
 SetAs::~SetAs(){}
 
 //Write to the database the transformation matrix defining the frame frame_name with respect to the frame ref_frame_name
-// and expressed in the frame ref_frame_name, that is X_RF_R.
+// and expressed in the frame ref_frame_name, that is X_S_B.
 void SetAs::As(Eigen::Matrix4d transformation_matrix){
     Eigen::Affine3d transfo_matrix;
     transfo_matrix.matrix() = transformation_matrix;
@@ -100,24 +100,24 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     }
     
     
-    Eigen::Matrix3d R_RI;
+    Eigen::Matrix3d R_C_B;
     //If the ref_frame is different from the in_frame
     if(this->ref_frame_name != this->in_frame_name){
         //Take into account the fact that the transformation can be expressed in a frame different from the reference frame
         //       Like: SET object WRT table EI world
         auto getter = ExpressedInGet(this->world_name, this->in_frame_name, this->ref_frame_name);
-        auto X_RI_R = getter.Ei(this->ref_frame_name);
-        R_RI = X_RI_R(Eigen::seq(0,2), Eigen::seq(0,2));
+        auto X_C_B = getter.Ei(this->ref_frame_name);
+        R_C_B = X_C_B(Eigen::seq(0,2), Eigen::seq(0,2));
     }else{
         //If the ref_frame is the same as the in_frame, the identity matrix relates them.
-        R_RI = Eigen::Matrix3d::Identity();
+        R_C_B = Eigen::Matrix3d::Identity();
     }
 
     // The position vector is expressed in the ref_frame through
-    // t_RF_R = R_RI * t_RF_I
-    // such that the stored pose is X_RF_R = [R_RF, t_RF_R; 0,0,0,1]
+    // p_S_B = R_C_B * p_S_B_C
+    // such that the stored pose is X_S_B = [R_S_B, p_S_B; 0,0,0,1]
     auto R = transfo_matrix.rotation();
-    auto t = R_RI * transfo_matrix.translation(); 
+    auto t = R_C_B * transfo_matrix.translation(); 
 
     SQLite::Transaction transaction(db);
     
@@ -126,7 +126,7 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     q1.bind(1, this->frame_name);
     q1.executeStep();
 
-    //Store the frame built from R_RF and t_RF_R
+    //Store the frame built from R_S_B and p_S_B
     SQLite::Statement   q2(db, "INSERT INTO frames VALUES (?, ?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)");
     q2.bind(1, this->frame_name);
     q2.bind(2, this->ref_frame_name);
@@ -374,31 +374,31 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     //Using Drake's monogram notation (https://drake.mit.edu/doxygen_cxx/group__multibody__notation__basics.html)
 
     //Get frame_name WRT root EI root
-    auto [X_WF_W, frame_root_name] = PoseWrtRootSQL(this->frame_name);
+    auto [X_S_W, frame_root_name] = PoseWrtRootSQL(this->frame_name);
 
     //Get ref_frame_name WRT root EI root
-    auto X_WR_W = Eigen::Affine3d::Identity();
+    auto X_B_W = Eigen::Affine3d::Identity();
     auto ref_root_name = this->ref_frame_name;
     if(frame_root_name == this->ref_frame_name){
-        //The root frame is the ref_frame_name so X_WR_W is identity and there is nothing to do.
+        //The root frame is the ref_frame_name so X_B_W is identity and there is nothing to do.
     }else{
         //Otherwise, we need to find its pose relative to the root.
         auto [pose, root_name] = PoseWrtRootSQL(this->ref_frame_name);
-        X_WR_W = pose;
+        X_B_W = pose;
         ref_root_name = root_name;
     }
-    auto R_WR   = X_WR_W.rotation();
+    auto R_B_W   = X_B_W.rotation();
 
     //Get in_frame_name WRT root EI root
-    auto X_WI_W = Eigen::Affine3d::Identity();
+    auto X_C_W = Eigen::Affine3d::Identity();
     if(frame_root_name == ref_root_name){
         if(frame_root_name == in_frame_name){
             //The root frame is already the frame in which we want to express the transform
-            // so X_WI_W is identity and there is nothing to do.
+            // so X_C_W is identity and there is nothing to do.
         }else{
             //Otherwise, we need to find its pose relative to the root.
             auto [pose, in_root_name] = PoseWrtRootSQL(this->in_frame_name);
-            X_WI_W = pose;
+            X_C_W = pose;
             //Make sure all three frames have the same root frame
             if(ref_root_name != in_root_name){
                 throw runtime_error("The frame "+this->ref_frame_name+" cannot be defined with respect to "+this->in_frame_name+". Is the frame graph complete?");
@@ -409,25 +409,25 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     }
 
     //Get root WRT ref EI root
-    auto X_RW_R = X_WR_W.inverse();
-    Eigen::Affine3d X_RW_W = Eigen::Affine3d::Identity();
-    X_RW_W.linear()        = X_RW_R.rotation();
-    X_RW_W.translation()   = -1 * X_WR_W.translation();
+    auto X_W_B = X_B_W.inverse();
+    Eigen::Affine3d X_W_B_W = Eigen::Affine3d::Identity();
+    X_W_B_W.linear()        = X_W_B.rotation();
+    X_W_B_W.translation()   = -1 * X_B_W.translation();
 
     //Compute the frame_name WRT ref_frame_name EI root
-    auto X_RF_R = X_RW_R * X_WF_W;
-    auto R_RF   = X_RF_R.rotation();
+    auto X_S_B = X_W_B * X_S_W;
+    auto R_S_B   = X_S_B.rotation();
 
     //Change the "expressed in"
     // To represent a position vector (ref_frame --> frame), a coordinate system (in_frame) needs to be chosen.
     // Rotations are not expressed in a coordinate system (no in_frame involved).
-    // t_RF_R = R_RI * t_RF_I
-    auto X_IW_I = X_WI_W.inverse();
-    auto R_IW   = X_IW_I.rotation();
-    Eigen::Affine3d X_RF_I = Eigen::Affine3d::Identity();
-    X_RF_I.linear()        = R_RF;
-    X_RF_I.translation()   = R_IW * R_WR * X_RF_R.translation();
-    return X_RF_I.matrix();
+    // p_S_B = R_C_B * p_S_B_C
+    auto X_W_C = X_C_W.inverse();
+    auto R_W_C   = X_W_C.rotation();
+    Eigen::Affine3d X_S_B_C = Eigen::Affine3d::Identity();
+    X_S_B_C.linear()        = R_S_B;
+    X_S_B_C.translation()   = R_W_C * R_B_W * X_S_B.translation();
+    return X_S_B_C.matrix();
 }
 
 
