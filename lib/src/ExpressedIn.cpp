@@ -64,6 +64,30 @@ SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string
 
 SetAs::~SetAs(){}
 
+/*
+*    Check if a frame exists in the database
+*
+*    @param db: The database to check
+*    @param frame_name: The name of the frame to check
+*
+*    @return: True if the frame exists, false otherwise
+*/
+bool SetAs::FrameExistsInDB(SQLite::Database& db, string frame_name){
+    SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
+    query.bind(1, frame_name);
+
+    //Verify that the frame exists.
+    int row_counter = 0;
+    while (query.executeStep()){
+        row_counter++;
+    }
+    if(row_counter == 0)
+        return false;
+    if(row_counter != 1)
+        throw runtime_error("Need a single reference frame "+frame_name+".");
+    return true;
+}
+
 //Write to the database the transformation matrix defining the frame frame_name with respect to the frame ref_frame_name
 // and expressed in the frame ref_frame_name, that is X_S_B.
 void SetAs::As(Eigen::Matrix4d transformation_matrix){
@@ -77,29 +101,57 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     db.exec("PRAGMA journal_mode=WAL;");
     db.exec("PRAGMA synchronous = off;");
 
-    SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
-    query.bind(1, this->ref_frame_name);
+    /* Cases:
+    * 1) R,F,I defined                          : Normal case, will overwrite previous definition
+    * 2) R,I defined and F undefined            : Normal case, will introduce a new frame
+    * 3) F,I defined and R undefined            : Reverse the command
+    * 4) R,F undefined and R != I               : Error
+    * 5) R,I undefined and R != I               : Error
+    * 6) R,I undefined and R == I and F defined : Permitted, will potentially introduce a disconnected frame.
+    * 7) R,F,I undefined and R == I             : Permitted, will potentially introduce a disconnected frame.
+    * 8) I undefined and R != I                 : Error
+    */
 
-    //Verify that the reference frame ref_frame_name exists.
-    int row_counter = 0;
-    while (query.executeStep()){
-        row_counter++;
+    //Check the existence of the frames
+    bool in_frame_exists = this->FrameExistsInDB(db, this->in_frame_name);
+    bool ref_frame_exists = this->FrameExistsInDB(db, this->ref_frame_name);
+    bool frame_exists = this->FrameExistsInDB(db, this->frame_name);
+
+    //Case 4
+    if(!ref_frame_exists && !frame_exists && this->ref_frame_name != this->in_frame_name){
+        throw runtime_error("Reference frames "+this->ref_frame_name+" and "+this->frame_name+" do not exist in this world.");
     }
-    
-    //If there is no frame called ref_frame_name in the database
-    // and the ref_frame_name is not the same as the in_frame_name
-    if(row_counter == 0 && this->ref_frame_name != this->in_frame_name){
+
+    //Case 5
+    if(!ref_frame_exists && !in_frame_exists && this->ref_frame_name != this->in_frame_name){
         //We are now permitting setting a reference frame with respect to a parent frame that has not yet been defined
         // unless the in_frame_name is different from the ref_frame_name.
-        throw runtime_error("The reference frame "+this->ref_frame_name+" does not exist in this world.");
+        throw runtime_error("Reference frames "+this->ref_frame_name+" and "+this->in_frame_name+" do not exist in this world.");
     }
     
-    //Throw an error if there is more than one existing reference frame called ref_frame_name
-    if(row_counter > 1){
-        throw runtime_error("Need a single reference frame "+this->ref_frame_name+".");
+    //Case 8
+    if(!in_frame_exists && this->ref_frame_name != this->in_frame_name){
+        throw runtime_error("Reference frames "+this->in_frame_name+" does not exist in this world.");
+    }
+
+    //Case 3
+    //If the ref_frame is undefined BUT the frame is defined, we reverse the command to SET ref_frame WRT frame AS transformation_matrix.inverse()
+    if(!ref_frame_exists && frame_exists){
+        auto setter = ExpressedInSet(this->world_name, this->ref_frame_name, this->frame_name);
+        //Inverse the transformation matrix. In general, reversing a transformation matrix cannot be done by simply taking the inverse
+        // as doing so assumes that the ref_frame is the same as the in_frame. This is not necessarily the case here.
+        Eigen::Matrix4d inversed_transformation_matrix = Eigen::Matrix4d::Identity();
+        // R_r_f = R_f_r_Tran
+        inversed_transformation_matrix.block<3,3>(0,0) = transformation_matrix.block<3,3>(0,0).transpose();
+        // p_r_f_i = - p_r_f_i
+        inversed_transformation_matrix.block<3,1>(0,3) = -1 * transformation_matrix.block<3,1>(0,3);
+        
+        setter.Ei(this->in_frame_name).As(inversed_transformation_matrix);
+        return;
     }
     
-    
+    //By here, we can assume that we are dealing with case 1 or 2.
+
     Eigen::Matrix3d R_C_B;
     //If the ref_frame is different from the in_frame
     if(this->ref_frame_name != this->in_frame_name){
@@ -370,8 +422,6 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     this->in_frame_name = in_frame_name;
     if(!VerifyInput(in_frame_name))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the frame name.");
-    
-    //Using Drake's monogram notation (https://drake.mit.edu/doxygen_cxx/group__multibody__notation__basics.html)
 
     //Get frame_name WRT root EI root
     auto [X_S_W, frame_root_name] = PoseWrtRootSQL(this->frame_name);

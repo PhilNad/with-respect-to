@@ -33,6 +33,7 @@ class SetAs{
         SetAs(string, string, string, string);
         ~SetAs();
         void As(Eigen::Matrix4d);
+        bool FrameExistsInDB(SQLite::Database&, string);
 };
 
 class ExpressedInGet

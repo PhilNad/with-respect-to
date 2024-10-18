@@ -7,6 +7,82 @@ Simple library that manages databases of 3D transformations with explicit access
 - Accessible. Information is accessible from a variety of interfaces on Linux (Python, Julia, Bash).
 - Minimalist. The API contains as few methods as possible.
 
+## Usage
+### Example Usage From Python
+This is part of [python_bindings/src/test.py](python_bindings/src/test.py).
+```python
+#Connect to a temporary database
+TEMPORARY_DATABASE = 1
+db = WRT.DbConnector(TEMPORARY_DATABASE)
+
+#Set the pose of frame b with respect to frame a, which does not exist yet (permitted).
+pose = SE3.Rx(90, "deg").A
+db.In('test').Set('b').Wrt('a').Ei('a').As(pose)
+
+#Set the pose of frame a with respect to the world (default frame)
+pose = np.array([[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]])
+db.In('test').Set('a').Wrt('world').Ei('world').As(pose)
+
+#Get the pose of frame a with respect to frame b
+T_a_b = SE3(db.In('test').Get('a').Wrt('b').Ei('b'))
+```
+
+### Example Usage From C++
+This is part of [test/src/test.cpp](test/src/test.cpp).
+```cpp
+//Connect to a temporary database
+auto wrt = DbConnector(DbConnector::TEMPORARY_DATABASE);
+
+//Set the pose of frame a with respect to the world (default frame)
+Affine3d pose;
+pose.matrix() << 1,0,0,1, 0,1,0,1, 0,0,1,1, 0,0,0,1;
+wrt.In("test").Set("a").Wrt("world").Ei("world").As(pose.matrix());
+pose = wrt.In("test").Get("a").Wrt("world").Ei("world");
+
+//Set the pose of frame b with respect to frame a
+pose.linear() = AngleAxisd(deg_to_rad(90), Vector3d::UnitX());
+pose.translation() << 0,0,0;
+wrt.In("test").Set("b").Wrt("a").Ei("a").As(pose.matrix());
+
+//Get the pose of frame a with respect to the world
+Matrix4d T_b_a = wrt.In("test").Get("a").Wrt("world").Ei("world");
+```
+
+### Example Usage From Bash
+```bash
+> WRT --In test --Get d --Wrt a --Ei a
+ 0 -1  0  1
+ 0  0 -1  0
+ 1  0  0  1
+ 0  0  0  1
+> WRT --compact --In test --Get d --Wrt a --Ei a
+0,-1,0,1,0,0,-1,0,1,0,0,1,0,0,0,1
+> WRT --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
+The format of the submitted matrix is wrong (-3).
+> WRT --quiet --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
+> WRT --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]]
+> WRT --dir /home/username/other_dir/ --In test --Get d --Wrt a --Ei a
+The reference frame a does not exist in this world.
+```
+
+### Usage of the Command-Line Interface
+```
+Usage: WRT [options] 
+
+Optional arguments:
+-h --help    	shows help message and exits
+-v --version 	prints version information and exits
+-q --quiet   	If a problem arise, do now output any information, fails quietly. [default: false]
+-c --compact 	Output a compact representation of the matrix as a comma separated list of 16 numbers in row-major order. [default: false]
+-d --dir     	Path to the directory in which the database is located.
+--In         	The world name the frame lives in ([a-z][0-9]-). [required]
+--Get        	Name of the frame to get ([a-z][0-9]-).
+--Set        	Name of the frame to set ([a-z][0-9]-).
+--Wrt        	Name of the reference frame the frame is described with respect to ([a-z][0-9]-). [required]
+--Ei         	Name of the reference frame the frame is expressed in ([a-z][0-9]-). [required]
+--As         	If setting a frame, a string representation of the array defining the pose with rotation R and translation t: [[R00,R01,R02,t0],[R10,R11,R12,t1],[R20,R21,R22,t2],[0,0,0,1]]
+```
+
 ## Differences With tf2
 Although this library might seem to be similar to [tf2](http://wiki.ros.org/tf2), there are notable differences that should be taken into account when choosing which one to use:
 - ### **1.** tf2 requires running the ROS ecosystem, WRT does not.
@@ -25,7 +101,6 @@ Although this library might seem to be similar to [tf2](http://wiki.ros.org/tf2)
 - With a tree 50 levels deep, with 2 concurrent readers and 1 writer, the average time for an operation was 0.0032 seconds (>315 Hz) on over 99% of the operations.
 
 The GET operations seems to be about 3% slower than the SET operations for the same tree depth. The depth of the tree seems to have a much greater impact as the operations done on the 50 levels tree are about 20% slower than the operations done on the 10 levels tree. Clearly, a tree depth of 50 levels is an edge-case.
-
 
 ## Design
 - Uses the [Eigen library](https://eigen.tuxfamily.org)
@@ -92,46 +167,6 @@ The [latest release](https://github.com/PhilNad/with-respect-to/releases) contai
 > WRT
 > python3 -c $'import with_respect_to as WRT'
 ```
-
-## Usage of the Command-Line Interface
-```
-Usage: WRT [options] 
-
-Optional arguments:
--h --help    	shows help message and exits
--v --version 	prints version information and exits
--q --quiet   	If a problem arise, do now output any information, fails quietly. [default: false]
--c --compact 	Output a compact representation of the matrix as a comma separated list of 16 numbers in row-major order. [default: false]
---In         	The world name the frame lives in ([a-z][0-9]-). [required]
---Get        	Name of the frame to get ([a-z][0-9]-).
---Set        	Name of the frame to set ([a-z][0-9]-).
---Wrt        	Name of the reference frame the frame is described with respect to ([a-z][0-9]-). [required]
---Ei         	Name of the reference frame the frame is expressed in ([a-z][0-9]-). [required]
---As         	If setting a frame, a string representation of the array defining the pose with rotation R and translation t: [[R00,R01,R02,t0],[R10,R11,R12,t1],[R20,R21,R22,t2],[0,0,0,1]]
-```
-
-### Example Usage From Bash
-```bash
-> WRT --In test --Get d --Wrt a --Ei a
- 0 -1  0  1
- 0  0 -1  0
- 1  0  0  1
- 0  0  0  1
-> WRT --compact --In test --Get d --Wrt a --Ei a
-0,-1,0,1,0,0,-1,0,1,0,0,1,0,0,0,1
-> WRT --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
-The format of the submitted matrix is wrong (-3).
-> WRT --quiet --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,0]]
-> WRT --In test --Set a --Wrt world --Ei world --As [[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]]
-> WRT --dir /home/username/other_dir/ --In test --Get d --Wrt a --Ei a
-The reference frame a does not exist in this world.
-```
-
-### Example Usage From C++
-See [test/src/test.cpp](test/src/test.cpp).
-
-### Example Usage From Python
-See [python_bindings/src/test.py](python_bindings/src/test.py).
 
 ## Debugging
 You can use [SQLiteStudio](https://github.com/pawelsalawa/sqlitestudio) to open the database file and read its content through a GUI.

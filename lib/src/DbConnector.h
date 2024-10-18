@@ -5,6 +5,7 @@ class DbConnector;
 
 #include <SQLiteCpp/SQLiteCpp.h>
 #include <string>
+#include <filesystem>
 #include "GetSet.h"
 using namespace std;
 
@@ -14,6 +15,8 @@ class DbConnector
         string db_dir_override;
         bool temporary_db;
         string db_path;
+        bool IsDirectoryWritable(std::filesystem::path path);
+        bool IsDirectoryWritable(string path);
     public:
         DbConnector();
         DbConnector(uint8_t);

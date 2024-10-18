@@ -52,6 +52,14 @@ int main()
     cout << pose.matrix() << endl;
     wrt.In("test").Set("d").Wrt("b").Ei("b").As(pose.matrix());
 
+    //Frame e is undefined but d and a are defined so the inverse can be used to set e wrt d ei a.
+    wrt.In("test").Set("d").Wrt("e").Ei("a").As(pose.matrix());
+    pose.matrix() << 1,0,0,1, 0,0,-1,0, 0,1,0,2, 0,0,0,1;
+    assert(wrt.In("test").Get("e").Wrt("world").Ei("world").matrix().isApprox(pose.matrix()));
+
+    //Create a disconnected tree (should be legal)
+    wrt.In("test").Set("g").Wrt("f").Ei("f").As(pose.matrix());
+
     pose.matrix() << 1,0,0,0, 0,0,1,0, 0,-1,0,0, 0,0,0,1;
     assert(wrt.In("test").Get("a").Wrt("b").Ei("b").matrix().isApprox(pose.matrix()));
     

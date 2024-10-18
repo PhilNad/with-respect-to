@@ -66,21 +66,80 @@ std::filesystem::path get_exe_dir_abs_path() {
     }
 }
 
+/*
+* Check if a directory is writable.
+*
+* @param path: Path to the directory to check.
+* @return: True if the directory is writable, false otherwise.
+*/
+bool DbConnector::IsDirectoryWritable(string path){
+    return IsDirectoryWritable(std::filesystem::path{path});
+}
+
+/*
+* Check if a directory is writable.
+*
+* @param path: Path to the directory to check.
+* @return: True if the directory is writable, false otherwise.
+*/
+bool DbConnector::IsDirectoryWritable(std::filesystem::path path){
+    if(std::filesystem::is_directory(path)){
+        if(!std::filesystem::exists(path)){
+            return false;
+        }else{
+            //The path is a directory and it exists, so test if it is writable.
+            ofstream test_file(path.string()+"/test_if_directory_writable.txt");
+            if(test_file.is_open()){
+                test_file.close();
+                std::filesystem::remove(path.string()+"/test_if_directory_writable.txt");
+                return true;
+            }else{
+                return false;
+            }
+        }
+    }else{
+        //If the path is not a directory, check if the parent directory is writable
+        return IsDirectoryWritable(path.parent_path());
+    }
+}
+
 GetSet DbConnector::In(string world_name){
     if(!regex_match(world_name, regex(R"(^[0-9a-z\-]+$)")))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the world name.");
     
+    /*
+    The following rules are used to determine the directory in which the database is stored:
+    1. If the db_dir_override is set, use that directory. Throw an exception if the directory is not writable.
+    2. If this->temporary_db == True, use the /tmp directory if it is writable, otherwise use the home directory. 
+    3. If this->temporary_db == False, and the executable is located in a directory that is writable, use that directory.
+    4. If this->temporary_db == False, and the executable is located in a directory that is NOT writable, use the home directory.
+    */
+
     auto DB_EXISTS = false;
     //Get the path to the directory of the executable
     std::filesystem::path exe_dir = get_exe_dir_abs_path();
-    //If the exe_dir is "/usr/bin/", it probably means that the calling executable is /usr/bin/python.
-    // In that case, use the home directory instead.
-    if(exe_dir == "/usr/bin"){
-        exe_dir = get_home_dir();
-    }
-    //Possibly override db directory
+
     if(db_dir_override.length() > 0){
+        //Use the user specified directory
         exe_dir = std::filesystem::path{db_dir_override};
+    }else{
+        //If the temporary flag is set, use the /tmp directory if it is writable, otherwise use the home directory.
+        if(this->temporary_db){
+            exe_dir = std::filesystem::path{"/tmp"};
+            if(!IsDirectoryWritable(exe_dir)){
+                exe_dir = get_home_dir();
+            }
+        }else{
+            //If the directory of the executable is not writable, use the home directory.
+            if(!IsDirectoryWritable(exe_dir)){
+                exe_dir = get_home_dir();
+            }
+        }
+    }
+
+    //If the directory is not writable, throw an exception as we need to write a file somewhere.
+    if(!IsDirectoryWritable(exe_dir)){
+        throw runtime_error("The directory "+exe_dir.string()+" is not writable.");
     }
 
     //Get a list of existing databases in directory
@@ -93,8 +152,6 @@ GetSet DbConnector::In(string world_name){
                 DB_EXISTS = true;
         }
     }
-
-    
 
     world_name = string(std::filesystem::absolute(exe_dir)) + "/" + world_name;
     this->db_path = world_name+".db";
