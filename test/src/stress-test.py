@@ -41,12 +41,12 @@ def test_set(db, nb_levels):
     '''
     pose = random_pose()
 
-    frame_name     = '{}'.format(np.random.randint(1, nb_levels))
-    ref_frame_name = '{}'.format(np.random.randint(0, int(frame_name)))
-    in_frame_name  = '{}'.format(np.random.randint(0, int(frame_name)))
-    #print("Setting {} wrt {} ei {}".format(frame_name, ref_frame_name, in_frame_name))
+    subject_name     = '{}'.format(np.random.randint(1, nb_levels))
+    basis_name = '{}'.format(np.random.randint(0, int(subject_name)))
+    csys_name  = '{}'.format(np.random.randint(0, int(subject_name)))
+    #print("Setting {} wrt {} ei {}".format(subject_name, basis_name, csys_name))
     start = time.time()
-    db.In('test').Set(frame_name).Wrt(ref_frame_name).Ei(in_frame_name).As(pose)
+    db.In('test').Set(subject_name).Wrt(basis_name).Ei(csys_name).As(pose)
     end = time.time()
     return end - start
 
@@ -54,11 +54,11 @@ def test_get(db, nb_levels):
     '''
     Send a GET request, compute the time it takes for the database to return the result, and return the time.
     '''
-    frame_name     = '{}'.format(np.random.randint(1, nb_levels))
-    ref_frame_name = '{}'.format(np.random.randint(0, int(frame_name)))
-    in_frame_name  = '{}'.format(np.random.randint(0, int(frame_name)))
+    subject_name     = '{}'.format(np.random.randint(1, nb_levels))
+    basis_name = '{}'.format(np.random.randint(0, int(subject_name)))
+    csys_name  = '{}'.format(np.random.randint(0, int(subject_name)))
     start = time.time()
-    db.In('test').Get(frame_name).Wrt(ref_frame_name).Ei(in_frame_name)
+    db.In('test').Get(subject_name).Wrt(basis_name).Ei(csys_name)
     end = time.time()
     return end - start
 

@@ -21,9 +21,9 @@ private:
     /// Name of the world/database to work in.
     string world_name;
     /// Name of the subject frame.
-    string frame_name;
+    string subject_name;
     /// Name of the basis frame.
-    string ref_frame_name;
+    string basis_name;
 public:
     /**
      * @brief Interface to the Wrt operator. Do not use this class directly. For internal use only.
@@ -55,9 +55,9 @@ private:
     /// Name of the world/database to work in.
     string world_name;
     /// Name of the subject frame.
-    string frame_name;
+    string subject_name;
     /// Name of the basis frame.
-    string ref_frame_name;
+    string basis_name;
 public:
     /**
      * @brief Interface to the Wrt operator. Do not use this class directly. For internal use only.

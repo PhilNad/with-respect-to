@@ -22,7 +22,7 @@ private:
     /// Name of the world/database to work in.
     string world_name;
     /// Name of the frame to Get/Set.
-    string frame_name;
+    string subject_name;
 public:
     /**
      * @brief Interface to the Get/Set operators. Do not use this class directly. For internal use only.

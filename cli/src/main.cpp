@@ -107,9 +107,9 @@ int main(int argc, char *argv[]) {
                 pose << n[0],n[1],n[2],n[3], n[4],n[5],n[6],n[7], n[8],n[9],n[10],n[11], n[12],n[13],n[14],n[15];
                 //Retrieve pertinent arguments
                 auto world_name     = program.get<std::string>("--In");
-                auto frame_name     = program.get<std::string>("--Set");
-                auto ref_frame_name = program.get<std::string>("--Wrt");
-                auto in_frame_name  = program.get<std::string>("--Ei");
+                auto subject_name     = program.get<std::string>("--Set");
+                auto basis_name = program.get<std::string>("--Wrt");
+                auto csys_name  = program.get<std::string>("--Ei");
                 //Set pose
                 DbConnector wrt;
                 if(program.is_used("--dir")){
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
                 }else{
                     wrt = DbConnector();
                 }
-                wrt.In(world_name).Set(frame_name).Wrt(ref_frame_name).Ei(in_frame_name).As(pose);
+                wrt.In(world_name).Set(subject_name).Wrt(basis_name).Ei(csys_name).As(pose);
             }
         }
         
@@ -127,9 +127,9 @@ int main(int argc, char *argv[]) {
         if(has_get){
             //Retrieve pertinent arguments
             auto world_name     = program.get<std::string>("--In");
-            auto frame_name     = program.get<std::string>("--Get");
-            auto ref_frame_name = program.get<std::string>("--Wrt");
-            auto in_frame_name  = program.get<std::string>("--Ei");
+            auto subject_name     = program.get<std::string>("--Get");
+            auto basis_name = program.get<std::string>("--Wrt");
+            auto csys_name  = program.get<std::string>("--Ei");
             //Get pose
             DbConnector wrt;
             if(program.is_used("--dir")){
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
             }else{
                 wrt = DbConnector();
             }
-            Eigen::Matrix4d pose = wrt.In(world_name).Get(frame_name).Wrt(ref_frame_name).Ei(in_frame_name);
+            Eigen::Matrix4d pose = wrt.In(world_name).Get(subject_name).Wrt(basis_name).Ei(csys_name);
 
             //If the output should be compact
             if(program["--compact"] == true){

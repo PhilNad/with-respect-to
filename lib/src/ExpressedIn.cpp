@@ -27,9 +27,9 @@ int VerifyMatrix(Eigen::Affine3d transfo_matrix){
 }
 
 //RefFrame constructor taking a transformation matrix as input
-RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Affine3d transfo):
-    name(frame_name),
-    parent_name(parent_frame_name),
+RefFrame::RefFrame(string subject_name, string parent_name, Eigen::Affine3d transfo):
+    name(subject_name),
+    parent_name(parent_name),
     rotation(transfo.rotation()),
     translation(transfo.translation()){
         int code = VerifyMatrix(transfo);
@@ -40,9 +40,9 @@ RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Affine3d 
 }
 
 //RefFrame constructor taking a quaternion and a translation vector as input
-RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Quaterniond q, Eigen::Vector3d t):
-    name(frame_name),
-    parent_name(parent_frame_name),
+RefFrame::RefFrame(string subject_name, string parent_name, Eigen::Quaterniond q, Eigen::Vector3d t):
+    name(subject_name),
+    parent_name(parent_name),
     rotation(q),
     translation(t){
         //Normalize the quaternion
@@ -51,12 +51,12 @@ RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Quaternio
 
 RefFrame::~RefFrame(){}
 
-SetAs::SetAs(string world_name, string frame_name, string ref_frame_name, string in_frame_name):
+SetAs::SetAs(string world_name, string subject_name, string basis_name, string csys_name):
     world_name(world_name), 
-    frame_name(frame_name), 
-    ref_frame_name(ref_frame_name),
-    in_frame_name(in_frame_name){
-    if(!VerifyInput(frame_name) || !VerifyInput(ref_frame_name) || !VerifyInput(in_frame_name))
+    subject_name(subject_name), 
+    basis_name(basis_name),
+    csys_name(csys_name){
+    if(!VerifyInput(subject_name) || !VerifyInput(basis_name) || !VerifyInput(csys_name))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the frame name.");
     //Set the timeout to 10 seconds
     this->timeout = 10000;
@@ -68,13 +68,13 @@ SetAs::~SetAs(){}
 *    Check if a frame exists in the database
 *
 *    @param db: The database to check
-*    @param frame_name: The name of the frame to check
+*    @param subject_name: The name of the frame to check
 *
 *    @return: True if the frame exists, false otherwise
 */
-bool SetAs::FrameExistsInDB(SQLite::Database& db, string frame_name){
+bool SetAs::FrameExistsInDB(SQLite::Database& db, string subject_name){
     SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
-    query.bind(1, frame_name);
+    query.bind(1, subject_name);
 
     //Verify that the frame exists.
     int row_counter = 0;
@@ -84,12 +84,12 @@ bool SetAs::FrameExistsInDB(SQLite::Database& db, string frame_name){
     if(row_counter == 0)
         return false;
     if(row_counter != 1)
-        throw runtime_error("Need a single reference frame "+frame_name+".");
+        throw runtime_error("Need a single reference frame "+subject_name+".");
     return true;
 }
 
-//Write to the database the transformation matrix defining the frame frame_name with respect to the frame ref_frame_name
-// and expressed in the frame ref_frame_name, that is X_S_B.
+//Write to the database the transformation matrix defining the frame subject_name with respect to the frame basis_name
+// and expressed in the frame basis_name, that is X_S_B.
 void SetAs::As(Eigen::Matrix4d transformation_matrix){
     Eigen::Affine3d transfo_matrix;
     transfo_matrix.matrix() = transformation_matrix;
@@ -113,31 +113,31 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
     */
 
     //Check the existence of the frames
-    bool in_frame_exists = this->FrameExistsInDB(db, this->in_frame_name);
-    bool ref_frame_exists = this->FrameExistsInDB(db, this->ref_frame_name);
-    bool frame_exists = this->FrameExistsInDB(db, this->frame_name);
+    bool in_frame_exists = this->FrameExistsInDB(db, this->csys_name);
+    bool ref_frame_exists = this->FrameExistsInDB(db, this->basis_name);
+    bool frame_exists = this->FrameExistsInDB(db, this->subject_name);
 
     //Case 4
-    if(!ref_frame_exists && !frame_exists && this->ref_frame_name != this->in_frame_name){
-        throw runtime_error("Reference frames "+this->ref_frame_name+" and "+this->frame_name+" do not exist in this world.");
+    if(!ref_frame_exists && !frame_exists && this->basis_name != this->csys_name){
+        throw runtime_error("Reference frames "+this->basis_name+" and "+this->subject_name+" do not exist in this world.");
     }
 
     //Case 5
-    if(!ref_frame_exists && !in_frame_exists && this->ref_frame_name != this->in_frame_name){
+    if(!ref_frame_exists && !in_frame_exists && this->basis_name != this->csys_name){
         //We are now permitting setting a reference frame with respect to a parent frame that has not yet been defined
-        // unless the in_frame_name is different from the ref_frame_name.
-        throw runtime_error("Reference frames "+this->ref_frame_name+" and "+this->in_frame_name+" do not exist in this world.");
+        // unless the csys_name is different from the basis_name.
+        throw runtime_error("Reference frames "+this->basis_name+" and "+this->csys_name+" do not exist in this world.");
     }
     
     //Case 8
-    if(!in_frame_exists && this->ref_frame_name != this->in_frame_name){
-        throw runtime_error("Reference frames "+this->in_frame_name+" does not exist in this world.");
+    if(!in_frame_exists && this->basis_name != this->csys_name){
+        throw runtime_error("Reference frames "+this->csys_name+" does not exist in this world.");
     }
 
     //Case 3
     //If the ref_frame is undefined BUT the frame is defined, we reverse the command to SET ref_frame WRT frame AS transformation_matrix.inverse()
     if(!ref_frame_exists && frame_exists){
-        auto setter = ExpressedInSet(this->world_name, this->ref_frame_name, this->frame_name);
+        auto setter = ExpressedInSet(this->world_name, this->basis_name, this->subject_name);
         //Inverse the transformation matrix. In general, reversing a transformation matrix cannot be done by simply taking the inverse
         // as doing so assumes that the ref_frame is the same as the in_frame. This is not necessarily the case here.
         Eigen::Matrix4d inversed_transformation_matrix = Eigen::Matrix4d::Identity();
@@ -146,7 +146,7 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
         // p_r_f_i = - p_r_f_i
         inversed_transformation_matrix.block<3,1>(0,3) = -1 * transformation_matrix.block<3,1>(0,3);
         
-        setter.Ei(this->in_frame_name).As(inversed_transformation_matrix);
+        setter.Ei(this->csys_name).As(inversed_transformation_matrix);
         return;
     }
     
@@ -154,11 +154,11 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
 
     Eigen::Matrix3d R_C_B;
     //If the ref_frame is different from the in_frame
-    if(this->ref_frame_name != this->in_frame_name){
+    if(this->basis_name != this->csys_name){
         //Take into account the fact that the transformation can be expressed in a frame different from the reference frame
         //       Like: SET object WRT table EI world
-        auto getter = ExpressedInGet(this->world_name, this->in_frame_name, this->ref_frame_name);
-        auto X_C_B = getter.Ei(this->ref_frame_name);
+        auto getter = ExpressedInGet(this->world_name, this->csys_name, this->basis_name);
+        auto X_C_B = getter.Ei(this->basis_name);
         R_C_B = X_C_B(Eigen::seq(0,2), Eigen::seq(0,2));
     }else{
         //If the ref_frame is the same as the in_frame, the identity matrix relates them.
@@ -173,15 +173,15 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
 
     SQLite::Transaction transaction(db);
     
-    //Remove from DB any frame with  __frame_name
+    //Remove from DB any frame with  __subject_name
     SQLite::Statement   q1(db, "DELETE FROM frames WHERE name IS ?");
-    q1.bind(1, this->frame_name);
+    q1.bind(1, this->subject_name);
     q1.executeStep();
 
     //Store the frame built from R_S_B and p_S_B
     SQLite::Statement   q2(db, "INSERT INTO frames VALUES (?, ?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)");
-    q2.bind(1, this->frame_name);
-    q2.bind(2, this->ref_frame_name);
+    q2.bind(1, this->subject_name);
+    q2.bind(2, this->basis_name);
     q2.bind(3,  R(0,0));
     q2.bind(4,  R(0,1));
     q2.bind(5,  R(0,2));
@@ -201,11 +201,11 @@ void SetAs::As(Eigen::Matrix4d transformation_matrix){
 }
 
 
-ExpressedInGet::ExpressedInGet(string world_name, string frame_name, string ref_frame_name):
+ExpressedInGet::ExpressedInGet(string world_name, string subject_name, string basis_name):
     world_name(world_name), 
-    frame_name(frame_name), 
-    ref_frame_name(ref_frame_name){
-    if(!VerifyInput(frame_name) || !VerifyInput(ref_frame_name))
+    subject_name(subject_name), 
+    basis_name(basis_name){
+    if(!VerifyInput(subject_name) || !VerifyInput(basis_name))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the frame name.");
     //Set the timeout to 10 seconds
     this->timeout = 10000;
@@ -213,13 +213,13 @@ ExpressedInGet::ExpressedInGet(string world_name, string frame_name, string ref_
 
 ExpressedInGet::~ExpressedInGet(){}
 
-RefFrame ExpressedInGet::GetParentFrame(string frame_name){
+RefFrame ExpressedInGet::GetParentFrame(string subject_name){
     SQLite::Database db(this->world_name+".db", SQLite::OPEN_READONLY, this->timeout);
     db.exec("PRAGMA journal_mode=WAL;");
     db.exec("PRAGMA synchronous = off;");
 
     SQLite::Statement   query(db, "SELECT * FROM frames WHERE name IS ?");
-    query.bind(1, frame_name);
+    query.bind(1, subject_name);
 
     //Values to be read from the database
     string name;
@@ -252,9 +252,9 @@ RefFrame ExpressedInGet::GetParentFrame(string frame_name){
         t2     = query.getColumn(13).getDouble();
     }
     if(row_counter == 0)
-        throw runtime_error("The reference frame "+this->frame_name+" does not exist in this world.");
+        throw runtime_error("The reference frame "+this->subject_name+" does not exist in this world.");
     if(row_counter != 1)
-        throw runtime_error("Need a single reference frame "+this->frame_name+".");
+        throw runtime_error("Need a single reference frame "+this->subject_name+".");
 
     //If the value is lower than machine precision, set it to zero.
     R00 = (abs(R00) < DBL_EPSILON) ? 0 : R00;
@@ -281,10 +281,10 @@ RefFrame ExpressedInGet::GetParentFrame(string frame_name){
     return parent_frame;
 }
 
-//Return the pose of frame_name relative to world reference frame, expressed in world.
-// or if a kinematic loop is detected, return the frame_name as the parent frame.
-tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
-    RefFrame f = ExpressedInGet::GetParentFrame(frame_name);
+//Return the pose of subject_name relative to world reference frame, expressed in world.
+// or if a kinematic loop is detected, return the subject_name as the parent frame.
+tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string subject_name){
+    RefFrame f = ExpressedInGet::GetParentFrame(subject_name);
     Eigen::Quaterniond new_ori(f.rotation);
     Eigen::Vector3d new_pos(f.translation);
     
@@ -301,8 +301,8 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
         f = parent_frame;
         //If the name of the parent frame is the same as the initial frame, we have a loop
         // and its impossible to return the pose of the frame relative to the root frame.
-        if(f.name == frame_name){
-            throw runtime_error("The frame "+this->frame_name+" is part of a kinematic loop.");
+        if(f.name == subject_name){
+            throw runtime_error("The frame "+this->subject_name+" is part of a kinematic loop.");
         }
     }
 
@@ -313,12 +313,12 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRoot(string frame_name){
     return {new_transfo, f.parent_name};
 }
 
-//Return the pose of frame_name relative to root reference frame, expressed in the root frame.
+//Return the pose of subject_name relative to root reference frame, expressed in the root frame.
 // This version is independant of the name of the root frame.
 // This version performs everything from within the database, increasing drastically the speed.
 // Currently this does not use quaternions as rotation matrices are used in the database.
 // WARNING: There is a limit of 100 recursions, if you have a kinematic link longer than that, it will fail.
-tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name){
+tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string subject_name){
     SQLite::Database db(this->world_name+".db", SQLite::OPEN_READWRITE, this->timeout);
     db.exec("PRAGMA journal_mode=WAL;");
     db.exec("PRAGMA synchronous = off;");
@@ -351,7 +351,7 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name)
     ) \
     SELECT n, p, b00, b01, b02, b10, b11, b12, b20, b21, b22, bx, by, bz FROM get_parent ORDER BY i DESC LIMIT 1; \
     ");
-    query.bind(1, frame_name);
+    query.bind(1, subject_name);
 
     //Values to be read from the database
     string name;
@@ -384,14 +384,14 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name)
         t2     = query.getColumn(13).getDouble();
     }
 
-    string root_frame_name;
+    string root_name;
     if(row_counter == 0)
-        throw runtime_error("The reference frame "+frame_name+" does not exist in this world.");
+        throw runtime_error("The reference frame "+subject_name+" does not exist in this world.");
     else{
         if(name == "world")
-            root_frame_name = "world";
+            root_name = "world";
         else
-            root_frame_name = parent_name;
+            root_name = parent_name;
     }
 
     //If the value is lower than machine precision, set it to zero.
@@ -415,47 +415,47 @@ tuple<Eigen::Affine3d, string> ExpressedInGet::PoseWrtRootSQL(string frame_name)
                     R20, R21, R22, t2,
                     0,0,0,1;
 
-    return {tr, root_frame_name};
+    return {tr, root_name};
 }
 
-Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
-    this->in_frame_name = in_frame_name;
-    if(!VerifyInput(in_frame_name))
+Eigen::Matrix4d ExpressedInGet::Ei(string csys_name){
+    this->csys_name = csys_name;
+    if(!VerifyInput(csys_name))
         throw runtime_error("Only [a-z], [0-9] and dash (-) is allowed in the frame name.");
 
-    //Get frame_name WRT root EI root
-    auto [X_S_W, frame_root_name] = PoseWrtRootSQL(this->frame_name);
+    //Get subject_name WRT root EI root
+    auto [X_S_W, frame_root_name] = PoseWrtRootSQL(this->subject_name);
 
-    //Get ref_frame_name WRT root EI root
+    //Get basis_name WRT root EI root
     auto X_B_W = Eigen::Affine3d::Identity();
-    auto ref_root_name = this->ref_frame_name;
-    if(frame_root_name == this->ref_frame_name){
-        //The root frame is the ref_frame_name so X_B_W is identity and there is nothing to do.
+    auto ref_root_name = this->basis_name;
+    if(frame_root_name == this->basis_name){
+        //The root frame is the basis_name so X_B_W is identity and there is nothing to do.
     }else{
         //Otherwise, we need to find its pose relative to the root.
-        auto [pose, root_name] = PoseWrtRootSQL(this->ref_frame_name);
+        auto [pose, root_name] = PoseWrtRootSQL(this->basis_name);
         X_B_W = pose;
         ref_root_name = root_name;
     }
     auto R_B_W   = X_B_W.rotation();
 
-    //Get in_frame_name WRT root EI root
+    //Get csys_name WRT root EI root
     auto X_C_W = Eigen::Affine3d::Identity();
     if(frame_root_name == ref_root_name){
-        if(frame_root_name == in_frame_name){
+        if(frame_root_name == csys_name){
             //The root frame is already the frame in which we want to express the transform
             // so X_C_W is identity and there is nothing to do.
         }else{
             //Otherwise, we need to find its pose relative to the root.
-            auto [pose, in_root_name] = PoseWrtRootSQL(this->in_frame_name);
+            auto [pose, in_root_name] = PoseWrtRootSQL(this->csys_name);
             X_C_W = pose;
             //Make sure all three frames have the same root frame
             if(ref_root_name != in_root_name){
-                throw runtime_error("The frame "+this->ref_frame_name+" cannot be defined with respect to "+this->in_frame_name+". Is the frame graph complete?");
+                throw runtime_error("The frame "+this->basis_name+" cannot be defined with respect to "+this->csys_name+". Is the frame graph complete?");
             }
         }
     }else{
-        throw runtime_error("The frame "+this->frame_name+" cannot be defined with respect to "+this->ref_frame_name+". Is the frame graph complete?");
+        throw runtime_error("The frame "+this->subject_name+" cannot be defined with respect to "+this->basis_name+". Is the frame graph complete?");
     }
 
     //Get root WRT ref EI root
@@ -464,7 +464,7 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
     X_W_B_W.linear()        = X_W_B.rotation();
     X_W_B_W.translation()   = -1 * X_B_W.translation();
 
-    //Compute the frame_name WRT ref_frame_name EI root
+    //Compute the subject_name WRT basis_name EI root
     auto X_S_B = X_W_B * X_S_W;
     auto R_S_B   = X_S_B.rotation();
 
@@ -481,17 +481,17 @@ Eigen::Matrix4d ExpressedInGet::Ei(string in_frame_name){
 }
 
 
-ExpressedInSet::ExpressedInSet(string world_name, string frame_name, string ref_frame_name): 
+ExpressedInSet::ExpressedInSet(string world_name, string subject_name, string basis_name): 
     world_name(world_name), 
-    frame_name(frame_name), 
-    ref_frame_name(ref_frame_name){
+    subject_name(subject_name), 
+    basis_name(basis_name){
     //Set the timeout to 10 seconds
     this->timeout = 10000;
 }
 
 ExpressedInSet::~ExpressedInSet(){}
 
-SetAs ExpressedInSet::Ei(string in_frame_name){
-    this->in_frame_name = in_frame_name;
-    return SetAs(this->world_name, this->frame_name, this->ref_frame_name, this->in_frame_name);
+SetAs ExpressedInSet::Ei(string csys_name){
+    this->csys_name = csys_name;
+    return SetAs(this->world_name, this->subject_name, this->basis_name, this->csys_name);
 }
