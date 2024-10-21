@@ -32,11 +32,11 @@ RefFrame::RefFrame(string frame_name, string parent_frame_name, Eigen::Affine3d 
     parent_name(parent_frame_name),
     rotation(transfo.rotation()),
     translation(transfo.translation()){
-    int code = VerifyMatrix(transfo);
-    if(code < 0)
-        throw runtime_error("The format of the submitted matrix is wrong ("+to_string(code)+").");
-    //Normalize the quaternion
-    rotation.normalize();
+        int code = VerifyMatrix(transfo);
+        if(code < 0)
+            throw runtime_error("The format of the submitted matrix is wrong ("+to_string(code)+").");
+        //Normalize the quaternion
+        rotation.normalize();
 }
 
 //RefFrame constructor taking a quaternion and a translation vector as input

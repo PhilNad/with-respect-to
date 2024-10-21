@@ -139,7 +139,7 @@ GetSet DbConnector::In(string world_name){
 
     //If the directory is not writable, throw an exception as we need to write a file somewhere.
     if(!IsDirectoryWritable(exe_dir)){
-        throw runtime_error("The directory "+exe_dir.string()+" is not writable.");
+        throw filesystem::filesystem_error("The directory is not writable.", exe_dir, std::error_code());
     }
 
     //Get a list of existing databases in directory
