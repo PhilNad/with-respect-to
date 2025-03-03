@@ -1,10 +1,10 @@
-# With-Respect-To (+ Expressed-In)
-Simple library that manages databases of 3D transformations with explicit accessors.
+# With-Respect-To
+With-Respect-To (WRT) is a lightweight, high-performance library for managing 3D transformations easily with a centralized database approach. This library is meant to be used whenever you need to read/write the pose of a frame, freeing yourself from the worry of error-prone computations.
 
 ## Goals
 - Simple. A single 3D convention is used and is explicitly defined.
 - Fast. The user should not worry about the overhead of calling accessors.
-- Accessible. Information is accessible from a variety of interfaces on Linux (Python, Julia, Bash).
+- Accessible. Information is accessible from a variety of interfaces on Linux (Python, C++, Bash).
 - Minimalist. The API contains as few methods as possible.
 
 ## Usage
@@ -93,14 +93,32 @@ Although this library might seem to be similar to [tf2](http://wiki.ros.org/tf2)
   While it is possible (and easy) to use WRT over ethernet through [a network file system](https://ubuntu.com/server/docs/service-nfs), it is certainly [not optimal](https://www.sqlite.org/useovernet.html). Conversely, while it is possible to use tf2 in a setup consisting in a single machine, it really shines when used by many machines over a network. However, be wary of the [bandwidth requirements](http://wiki.ros.org/tf2/Design#tf_messages_do_not_deal_with_low_bandwidth_networks_well) imposed by the frequent transfer of [ROS messages](https://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/TransformStamped.html) over the network.
 
 ## Performances
-[Stress-testing the library](test/src/stress-test.py) through the Python interface on a Lenovo X1 Yoga 1st Gen i5 (2016), we got the following results:
-- With a tree 10 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.0026 seconds (>390 Hz) on over 99% of the operations.
-- With a tree 10 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.0026 seconds (>380 Hz) on over 99% of the operations.
-- With a tree 50 levels deep, with 3 concurrent writers, the average time for a SET operation was 0.0031 seconds (>325 Hz) on over 99% of the operations.
-- With a tree 50 levels deep, with 3 concurrent readers, the average time for a GET operation was 0.0032 seconds (>315 Hz) on over 99% of the operations.
-- With a tree 50 levels deep, with 2 concurrent readers and 1 writer, the average time for an operation was 0.0032 seconds (>315 Hz) on over 99% of the operations.
+This library is meant to be fast such that the overhead of calling the accessors is negligible, freeing the user from worrying about the performance of the library.
 
-The GET operations seems to be about 3% slower than the SET operations for the same tree depth. The depth of the tree seems to have a much greater impact as the operations done on the 50 levels tree are about 20% slower than the operations done on the 10 levels tree. Clearly, a tree depth of 50 levels is an edge-case.
+[Stress-testing the library](test/src/stress-test.py) through the Python interface on two standard consumer-level laptops:
+1) **Thinkpad X1 Yoga Gen 1 i5-6200U (20FQCTO1WW) 2016**
+2) **Thinkpad X1 Gen 12 Intel Ultra 7 165U (20UBCTO1WW) 2025**
+
+The following table shows the average time it takes to perform a GET or SET operation on a tree of a given depth with a given number of concurrent processes. The average time and frequency are calculated over 10,000 iterations.
+
+Note that a pose tree depth of 50 can be considered an edge-case as it is unlikely that a tree would be that deep in practice.
+
+| Operation | # Concurrent Processes | Pose Tree Depth | Machine | Avg. Time (ms) | Avg. Frequency (Hz) |
+|-----------|------------------------|-----------------|---------|-----------|----------------|
+| GET | 1 | 10 | 2 | 1.43 | 697 |
+| SET | 1 | 10 | 2 | 1.46 | 686 |
+| GET | 1 | 50 | 2 | 1.55 | 644 |
+| SET | 1 | 50 | 2 | 1.65 | 604 |
+| GET | 3 | 10 | 1 | 2.6 | 380 |
+| GET | 3 | 10 | 2 | 1.883 | 531 |
+| SET | 3 | 10 | 1 | 2.6 | 390 |
+| SET | 3 | 10 | 2 | 1.79 | 558 |
+| GET | 3 | 50 | 1 | 3.2 | 315 |
+| GET | 3 | 50 | 2 | 1.988 | 503 |
+| SET | 3 | 50 | 1 | 3.1 | 325 |
+| SET | 3 | 50 | 2 | 2.038 | 491 |
+
+The results show that the library is fast enough for most applications, even when used concurrently. The performance is not significantly affected by the depth of the tree or the number of concurrent processes.
 
 ## Design
 - Uses the [Eigen library](https://eigen.tuxfamily.org)

@@ -5,4 +5,4 @@
 [submodule "extern/SQLiteCpp"]
 	path = extern/SQLiteCpp
 	url = https://github.com/SRombauts/SQLiteCpp
-	branch = v3.2.0
+	branch = master
