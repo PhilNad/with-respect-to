@@ -1,0 +1,56 @@
+[project]
+name = "with-respect-to"
+version = "0.1.0"
+description = "With-Respect-To (WRT) is a lightweight, high-performance library for managing 3D transformations easily with a centralized database approach."
+authors = [
+    { name = "PhilNad" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project.urls]
+Homepage = "https://github.com/PhilNad/with-respect-to"
+
+[build-system]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+
+[tool.setuptools]
+packages = ["python_bindings"]
+
+[project.optional-dependencies]
+dev = [
+    "pybind11",
+    "cmake>=3.15",
+    "cibuildwheel"
+]
+
+[tool.cibuildwheel]
+build = [
+    "cp39-manylinux_x86_64",
+    "cp310-manylinux_x86_64",
+]
+
+[tool.cibuildwheel.linux]
+build-verbosity = 1
+before-all = [
+    "git submodule update --init --recursive",
+    "cd extern/SQLiteCpp",
+    "cmake -S . -B build",
+    "cmake --build build --config Release --target install",
+    "curl -L -o eigen-3.4.0.zip https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip && unzip eigen-3.4.0.zip",
+    "cd eigen-3.4.0 && mkdir build && cd build && cmake -S .. -B . && cmake --build . --target install"
+]
+
+[[tool.cibuildwheel.overrides]]
+select = "cp39-*"
+manylinux-x86_64-image = "manylinux_2_28"
+
+[[tool.cibuildwheel.overrides]]
+select = "cp310-*"
+manylinux-x86_64-image = "manylinux_2_28"
+
+# Needed for full C++17 support on macOS
+[tool.cibuildwheel.macos.environment]
+MACOSX_DEPLOYMENT_TARGET = "10.14"
