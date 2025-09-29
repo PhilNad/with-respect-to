@@ -53,10 +53,13 @@ jobs:
           name: dist-${{ matrix.os }}
 
   upload_all:
-    name: Upload if release
+    name: Upload to PyPI if release
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
+
+    permissions:
+      id-token: write
 
     steps:
       - uses: actions/setup-python@v5
@@ -67,6 +70,3 @@ jobs:
           merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
