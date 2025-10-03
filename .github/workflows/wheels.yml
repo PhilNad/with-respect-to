@@ -64,6 +64,14 @@ jobs:
           path: dist
           pattern: dist-*
           merge-multiple: true
+      - name: Check if PYPI_API_TOKEN is available
+        run: |
+          if [ -z "${{ secrets.PYPI_API_TOKEN }}" ]; then
+            echo "PYPI_API_TOKEN is not set!"
+            exit 1
+          else
+            echo "PYPI_API_TOKEN is set."
+          fi
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
